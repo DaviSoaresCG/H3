@@ -5,7 +5,7 @@ export const DEFAULT_TOLERANCE_MINUTES = 15; // 15 min de tolerância de atraso
 export const DEFAULT_HQ_RADIUS_METERS = 500; // 500 metros de raio da sede da empresa
 
 export const ENV = {
-  DATABASE_URL: process.env.DATABASE_URL || '',
+  DATABASE_URL: process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   JWT_SECRET: process.env.JWT_SECRET || 'super-secret-jwt-key-eventpoint-2026',
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',

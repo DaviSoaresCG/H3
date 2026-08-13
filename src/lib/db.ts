@@ -5,11 +5,17 @@ let pool: Pool | null = null;
 
 export function getDbPool(): Pool {
   if (!pool) {
+    if (!ENV.DATABASE_URL) {
+      throw new Error(
+        'DATABASE_URL/POSTGRES_URL não configurada. Configure a conexão com o Postgres (Supabase) para usar a aplicação.'
+      );
+    }
     pool = new Pool({
-      connectionString: ENV.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/eventpoint',
+      connectionString: ENV.DATABASE_URL,
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 5000,
+      ssl: { rejectUnauthorized: false },
     });
   }
   return pool;
@@ -17,27 +23,17 @@ export function getDbPool(): Pool {
 
 /**
  * Executa uma consulta SQL no banco PostgreSQL.
- * Caso o banco não esteja rodando ou a base não exista, captura o erro e permite o fallback.
  */
 export async function query<T = any>(text: string, params: any[] = []): Promise<T[]> {
-  try {
-    const p = getDbPool();
-    const result = await p.query(text, params);
-    return result.rows as T[];
-  } catch (error: any) {
-    console.warn(`[DB Connection Warning]: ${error.message || 'Sem conexão com banco'}. Usando modo de demonstração.`);
-    throw error; // Re-lança para que os handlers usem seus fallbacks
-  }
+  const p = getDbPool();
+  const result = await p.query(text, params);
+  return result.rows as T[];
 }
 
 /**
  * Executa uma instrução SQL e retorna a primeira linha ou null
  */
 export async function queryOne<T = any>(text: string, params: any[] = []): Promise<T | null> {
-  try {
-    const rows = await query<T>(text, params);
-    return rows.length > 0 ? rows[0] : null;
-  } catch (error) {
-    return null;
-  }
+  const rows = await query<T>(text, params);
+  return rows.length > 0 ? rows[0] : null;
 }
