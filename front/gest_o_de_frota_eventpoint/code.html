@@ -1,0 +1,333 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Gestão de Frota</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-fixed-dim": "#4ae176",
+                      "alert-warning": "#F59E0B",
+                      "inverse-surface": "#2d3133",
+                      "on-secondary": "#ffffff",
+                      "surface-container-high": "#e6e8ea",
+                      "secondary-fixed": "#6bff8f",
+                      "on-primary-container": "#7c839b",
+                      "background": "#f7f9fb",
+                      "surface-container": "#eceef0",
+                      "on-secondary-container": "#007432",
+                      "tertiary-container": "#0b1c30",
+                      "on-primary-fixed": "#131b2e",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-fixed-variant": "#005321",
+                      "secondary": "#006e2f",
+                      "alert-error": "#EF4444",
+                      "on-tertiary-fixed-variant": "#38485d",
+                      "primary-fixed": "#dae2fd",
+                      "surface": "#f7f9fb",
+                      "primary": "#000000",
+                      "error": "#ba1a1a",
+                      "tertiary-fixed-dim": "#b7c8e1",
+                      "slate-serious": "#64748B",
+                      "success-vibrant": "#22C55E",
+                      "primary-fixed-dim": "#bec6e0",
+                      "on-error-container": "#93000a",
+                      "tertiary-fixed": "#d3e4fe",
+                      "on-secondary-fixed": "#002109",
+                      "surface-container-highest": "#e0e3e5",
+                      "surface-bright": "#f7f9fb",
+                      "outline-variant": "#c6c6cd",
+                      "on-tertiary-fixed": "#0b1c30",
+                      "surface-tint": "#565e74",
+                      "navy-deep": "#0F172A",
+                      "surface-card": "#FFFFFF",
+                      "on-background": "#191c1e",
+                      "inverse-primary": "#bec6e0",
+                      "on-surface-variant": "#45464d",
+                      "outline": "#76777d",
+                      "on-surface": "#191c1e",
+                      "secondary-container": "#6bff8f",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#75859d",
+                      "border-subtle": "#E2E8F0",
+                      "surface-container-low": "#f2f4f6",
+                      "primary-container": "#131b2e",
+                      "on-tertiary": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "surface-dim": "#d8dadc",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "inverse-on-surface": "#eff1f3",
+                      "on-error": "#ffffff",
+                      "tertiary": "#000000",
+                      "surface-variant": "#e0e3e5"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "base-unit": "4px",
+                      "gutter": "16px",
+                      "margin-desktop": "32px",
+                      "margin-mobile": "16px",
+                      "container-max-width": "1280px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "label-bold": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-bold": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.1em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-24 md:pb-0 md:pl-[280px]">
+<!-- Web Navigation Drawer -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface border-r border-border-subtle dark:border-outline-variant h-screen w-[280px] left-0 top-0 fixed flex flex-col h-full py-6 gap-2 hidden md:flex z-40">
+<div class="px-6 pb-6">
+<h1 class="text-headline-md font-headline-md font-black text-navy-deep dark:text-primary-fixed">EventPoint Admin</h1>
+</div>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-outline px-4 py-3 mx-2 text-body-md font-body-md hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+            Dashboard
+        </a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-outline px-4 py-3 mx-2 text-body-md font-body-md hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+            Relatos
+        </a>
+<a class="flex items-center gap-3 bg-primary dark:bg-primary-fixed text-on-primary dark:text-on-primary-fixed rounded-lg px-4 py-3 mx-2 text-body-md font-body-md hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="local_shipping" data-weight="fill" style="font-variation-settings: 'FILL' 1;">local_shipping</span>
+            Frota
+        </a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-outline px-4 py-3 mx-2 text-body-md font-body-md hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="pending_actions">pending_actions</span>
+            Ponto
+        </a>
+<div class="flex-grow"></div>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-outline px-4 py-3 mx-2 text-body-md font-body-md hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+            Configurações
+        </a>
+</nav>
+<!-- Mobile Top App Bar -->
+<header class="bg-surface dark:bg-inverse-surface text-primary dark:text-inverse-primary border-b border-border-subtle dark:border-outline-variant docked full-width top-0 flex justify-between items-center w-full px-4 h-16 sticky z-30 md:hidden">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">person</span>
+</div>
+<span class="text-headline-md font-headline-md font-bold text-primary dark:text-inverse-primary">Veículos</span>
+</div>
+<button class="text-on-surface-variant dark:text-outline hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="signal_cellular_alt">signal_cellular_alt</span>
+</button>
+</header>
+<!-- Desktop Top App Bar -->
+<header class="bg-surface dark:bg-inverse-surface border-b border-border-subtle dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center w-full px-margin-desktop h-20 max-w-[calc(100%)] hidden md:flex z-30">
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant p-2 rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="text-headline-lg font-headline-lg text-primary dark:text-inverse-primary">Veículos</h1>
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container transition-colors px-4 py-2 rounded-lg font-bold">
+            Admin Profile
+        </button>
+</header>
+<main class="p-margin-mobile md:p-margin-desktop max-w-container-max-width mx-auto space-y-6">
+<!-- Veículo em Uso -->
+<section class="space-y-4">
+
+<div class="bg-surface-card border border-border-subtle rounded-xl p-4 md:p-6 shadow-[0px_4px_6px_-1px_rgba(15,23,42,0.1),0px_2px_4px_-2px_rgba(15,23,42,0.1)] border-l-4 border-l-secondary relative overflow-hidden group">
+<div class="absolute -right-10 -top-10 text-surface-container-highest opacity-50 transform rotate-12 transition-transform duration-500 group-hover:scale-110 pointer-events-none">
+<span class="material-symbols-outlined text-9xl">directions_car</span>
+</div>
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-label-bold font-label-bold uppercase">Em Uso</span>
+<span class="text-on-surface-variant text-body-sm font-body-sm">Retirado há 2h 45m</span>
+</div>
+<h3 class="text-headline-md font-headline-md font-bold text-navy-deep">Fiat Fiorino</h3>
+<p class="text-on-surface-variant text-body-md font-body-md font-mono mt-1">ABC-1234 • Frota 01</p>
+</div>
+<button class="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 active:scale-95 transition-all px-6 py-3 min-h-[48px] rounded-lg font-bold flex items-center justify-center gap-2 shadow-[0px_4px_6px_-1px_rgba(15,23,42,0.1),0px_2px_4px_-2px_rgba(15,23,42,0.1)] active:shadow-none active:translate-y-[1px]">
+<span class="material-symbols-outlined" data-icon="keyboard_return">keyboard_return</span>
+                        Devolver Veículo
+                    </button>
+</div>
+</div>
+</section>
+<!-- Veículos Disponíveis -->
+<section class="space-y-4 mt-8">
+<div class="flex justify-between items-center">
+<h2 class="text-headline-md font-headline-md font-semibold text-navy-deep">Disponíveis na Garagem</h2>
+<span class="text-on-surface-variant text-body-sm font-body-sm bg-surface-container px-3 py-1 rounded-full">3 veículos</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<!-- Card 1 -->
+<div class="bg-surface-card border border-border-subtle rounded-xl p-4 flex flex-col h-full border-l-4 border-l-border-subtle hover:border-l-primary transition-colors">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="text-body-lg font-body-lg font-bold text-navy-deep">Renault Master</h4>
+<p class="text-on-surface-variant text-body-sm font-body-sm font-mono">XYZ-9876</p>
+</div>
+<span class="material-symbols-outlined text-outline">local_shipping</span>
+</div>
+<div class="mt-auto pt-4 border-t border-surface-container">
+<button class="w-full bg-surface-container-lowest border border-border-subtle text-primary hover:bg-surface-container active:scale-95 transition-all px-4 py-2 min-h-[48px] rounded-lg font-bold flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="key">key</span>
+                            Retirar
+                        </button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-card border border-border-subtle rounded-xl p-4 flex flex-col h-full border-l-4 border-l-alert-warning">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-error-container text-on-error-container px-2 py-0.5 rounded text-label-caps font-label-caps uppercase">Manutenção Prevista</span>
+</div>
+<h4 class="text-body-lg font-body-lg font-bold text-navy-deep">VW Saveiro</h4>
+<p class="text-on-surface-variant text-body-sm font-body-sm font-mono">DEF-5678</p>
+</div>
+<span class="material-symbols-outlined text-alert-warning">build</span>
+</div>
+<div class="mt-auto pt-4 border-t border-surface-container">
+<button class="w-full bg-slate-serious/30 text-on-primary px-4 py-2 min-h-[48px] rounded-lg font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+<span class="material-symbols-outlined" data-icon="block">block</span>
+                            Indisponível
+                        </button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-card border border-border-subtle rounded-xl p-4 flex flex-col h-full border-l-4 border-l-border-subtle hover:border-l-primary transition-colors">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="text-body-lg font-body-lg font-bold text-navy-deep">Fiat Ducato</h4>
+<p class="text-on-surface-variant text-body-sm font-body-sm font-mono">GHI-9012</p>
+</div>
+<span class="material-symbols-outlined text-outline">local_shipping</span>
+</div>
+<div class="mt-auto pt-4 border-t border-surface-container">
+<button class="w-full bg-surface-container-lowest border border-border-subtle text-primary hover:bg-surface-container active:scale-95 transition-all px-4 py-2 min-h-[48px] rounded-lg font-bold flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="key">key</span>
+                            Retirar
+                        </button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Mobile Bottom Nav Bar -->
+<nav class="bg-surface dark:bg-inverse-surface border-t border-border-subtle dark:border-outline-variant fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 shadow-lg rounded-t-xl md:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-4 py-1 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="timer">timer</span>
+<span class="text-label-bold font-label-bold">Ponto</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed rounded-full px-4 py-1 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="directions_car" data-weight="fill" style="font-variation-settings: 'FILL' 1;">directions_car</span>
+<span class="text-label-bold font-label-bold">Frota</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-4 py-1 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="route">route</span>
+<span class="text-label-bold font-label-bold">Viagens</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-4 py-1 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="text-label-bold font-label-bold">Perfil</span>
+</a>
+</nav>
+
+
+</body></html>

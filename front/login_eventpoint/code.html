@@ -1,0 +1,266 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Login - EventPoint</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "secondary-fixed-dim": "#4ae176",
+                            "alert-warning": "#F59E0B",
+                            "inverse-surface": "#2d3133",
+                            "on-secondary": "#ffffff",
+                            "surface-container-high": "#e6e8ea",
+                            "secondary-fixed": "#6bff8f",
+                            "on-primary-container": "#7c839b",
+                            "background": "#f7f9fb",
+                            "surface-container": "#eceef0",
+                            "on-secondary-container": "#007432",
+                            "tertiary-container": "#0b1c30",
+                            "on-primary-fixed": "#131b2e",
+                            "surface-container-lowest": "#ffffff",
+                            "on-secondary-fixed-variant": "#005321",
+                            "secondary": "#006e2f",
+                            "alert-error": "#EF4444",
+                            "on-tertiary-fixed-variant": "#38485d",
+                            "primary-fixed": "#dae2fd",
+                            "surface": "#f7f9fb",
+                            "primary": "#000000",
+                            "error": "#ba1a1a",
+                            "tertiary-fixed-dim": "#b7c8e1",
+                            "slate-serious": "#64748B",
+                            "success-vibrant": "#22C55E",
+                            "primary-fixed-dim": "#bec6e0",
+                            "on-error-container": "#93000a",
+                            "tertiary-fixed": "#d3e4fe",
+                            "on-secondary-fixed": "#002109",
+                            "surface-container-highest": "#e0e3e5",
+                            "surface-bright": "#f7f9fb",
+                            "outline-variant": "#c6c6cd",
+                            "on-tertiary-fixed": "#0b1c30",
+                            "surface-tint": "#565e74",
+                            "navy-deep": "#0F172A",
+                            "surface-card": "#FFFFFF",
+                            "on-background": "#191c1e",
+                            "inverse-primary": "#bec6e0",
+                            "on-surface-variant": "#45464d",
+                            "outline": "#76777d",
+                            "on-surface": "#191c1e",
+                            "secondary-container": "#6bff8f",
+                            "error-container": "#ffdad6",
+                            "on-tertiary-container": "#75859d",
+                            "border-subtle": "#E2E8F0",
+                            "surface-container-low": "#f2f4f6",
+                            "primary-container": "#131b2e",
+                            "on-tertiary": "#ffffff",
+                            "on-primary": "#ffffff",
+                            "surface-dim": "#d8dadc",
+                            "on-primary-fixed-variant": "#3f465c",
+                            "inverse-on-surface": "#eff1f3",
+                            "on-error": "#ffffff",
+                            "tertiary": "#000000",
+                            "surface-variant": "#e0e3e5"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.125rem",
+                            "lg": "0.25rem",
+                            "xl": "0.5rem",
+                            "full": "0.75rem"
+                    },
+                    "spacing": {
+                            "base-unit": "4px",
+                            "gutter": "16px",
+                            "margin-desktop": "32px",
+                            "margin-mobile": "16px",
+                            "container-max-width": "1280px"
+                    },
+                    "fontFamily": {
+                            "body-md": [
+                                    "Inter"
+                            ],
+                            "body-sm": [
+                                    "Inter"
+                            ],
+                            "body-lg": [
+                                    "Inter"
+                            ],
+                            "headline-lg": [
+                                    "Inter"
+                            ],
+                            "headline-lg-mobile": [
+                                    "Inter"
+                            ],
+                            "label-bold": [
+                                    "Inter"
+                            ],
+                            "label-caps": [
+                                    "Inter"
+                            ],
+                            "headline-md": [
+                                    "Inter"
+                            ]
+                    },
+                    "fontSize": {
+                            "body-md": [
+                                    "16px",
+                                    {
+                                            "lineHeight": "24px",
+                                            "fontWeight": "400"
+                                    }
+                            ],
+                            "body-sm": [
+                                    "14px",
+                                    {
+                                            "lineHeight": "20px",
+                                            "fontWeight": "400"
+                                    }
+                            ],
+                            "body-lg": [
+                                    "18px",
+                                    {
+                                            "lineHeight": "26px",
+                                            "fontWeight": "400"
+                                    }
+                            ],
+                            "headline-lg": [
+                                    "32px",
+                                    {
+                                            "lineHeight": "40px",
+                                            "letterSpacing": "-0.02em",
+                                            "fontWeight": "700"
+                                    }
+                            ],
+                            "headline-lg-mobile": [
+                                    "24px",
+                                    {
+                                            "lineHeight": "32px",
+                                            "fontWeight": "700"
+                                    }
+                            ],
+                            "label-bold": [
+                                    "12px",
+                                    {
+                                            "lineHeight": "16px",
+                                            "letterSpacing": "0.05em",
+                                            "fontWeight": "700"
+                                    }
+                            ],
+                            "label-caps": [
+                                    "11px",
+                                    {
+                                            "lineHeight": "16px",
+                                            "letterSpacing": "0.1em",
+                                            "fontWeight": "600"
+                                    }
+                            ],
+                            "headline-md": [
+                                    "20px",
+                                    {
+                                            "lineHeight": "28px",
+                                            "fontWeight": "600"
+                                    }
+                            ]
+                    }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex items-center justify-center p-margin-mobile">
+<!-- Login Container -->
+<main class="w-full max-w-md bg-surface-card rounded-xl border border-border-subtle p-8 shadow-[0px_4px_6px_-1px_rgba(15,23,42,0.1),0px_2px_4px_-2px_rgba(15,23,42,0.1)]">
+<!-- Header / Logo -->
+<header class="flex flex-col items-center mb-8">
+<div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4 text-on-primary">
+<span class="material-symbols-outlined text-3xl" data-weight="fill">event</span>
+</div>
+<h1 class="text-headline-md font-headline-md font-bold text-navy-deep">EventPoint</h1>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-2 text-center">Acesse sua conta para continuar</p>
+</header>
+<!-- Form -->
+<form class="flex flex-col gap-5" id="loginForm">
+<!-- CPF Input -->
+<div class="flex flex-col gap-1">
+<label class="text-body-sm font-body-sm text-navy-deep font-semibold" for="cpf">CPF</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">badge</span>
+<input class="w-full h-12 pl-10 pr-3 rounded border border-border-subtle bg-surface-container-lowest text-body-md font-body-md text-on-surface placeholder-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" id="cpf" maxlength="14" name="cpf" placeholder="000.000.000-00" required="" type="text">
+</div>
+</div>
+<!-- Password Input -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center">
+<label class="text-body-sm font-body-sm text-navy-deep font-semibold" for="password">Senha</label>
+<a class="text-label-bold font-label-bold text-secondary hover:underline" href="#">Esqueci minha senha</a>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">lock</span>
+<input class="w-full h-12 pl-10 pr-10 rounded border border-border-subtle bg-surface-container-lowest text-body-md font-body-md text-on-surface placeholder-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" id="password" name="password" placeholder="••••••••" required="" type="password">
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors focus:outline-none" id="togglePassword" type="button">
+<span class="material-symbols-outlined" id="visibilityIcon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Submit Button -->
+<button class="w-full h-12 mt-4 bg-primary text-on-primary text-body-md font-body-md font-semibold rounded shadow-[0px_4px_6px_-1px_rgba(15,23,42,0.1)] hover:bg-opacity-90 active:scale-98 active:shadow-none active:translate-y-px transition-all flex items-center justify-center gap-2" type="submit">
+<span>Entrar</span>
+<span class="material-symbols-outlined text-sm">login</span>
+</button>
+</form>
+</main>
+<script>
+        // CPF Mask Logic
+        const cpfInput = document.getElementById('cpf');
+        cpfInput.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+            if (value.length > 11) value = value.slice(0, 11);
+            
+            if (value.length > 9) {
+                value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{3})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
+            } else if (value.length > 3) {
+                value = value.replace(/^(\d{3})(\d{0,3}).*/, '$1.$2');
+            }
+            e.target.value = value;
+        });
+
+        // Password Visibility Toggle
+        const togglePasswordBtn = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const visibilityIcon = document.getElementById('visibilityIcon');
+
+        togglePasswordBtn.addEventListener('click', function () {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            visibilityIcon.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+        });
+
+        // Form Submit Simulation
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span><span>Entrando...</span>';
+            btn.disabled = true;
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                // Simulate redirect or next action here
+            }, 1500);
+        });
+    </script>
+</body></html>
