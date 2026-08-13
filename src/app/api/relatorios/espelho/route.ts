@@ -18,76 +18,53 @@ export async function GET(request: Request) {
     const userId = searchParams.get('userId') || payload.userId;
     const month = searchParams.get('month') || new Date().toISOString().substring(0, 7);
 
-    const memoryEntries: any[] = (globalThis as any).memoryTimeEntries || [];
+    const employee = await queryOne('SELECT id, cpf, name, phone, role FROM users WHERE id = $1', [userId]);
 
-    try {
-      const employee = await queryOne('SELECT id, cpf, name, phone, role FROM users WHERE id = $1', [userId]);
+    const entries = await query(
+      `SELECT t.*, a.transcription_text 
+       FROM time_entries t
+       LEFT JOIN audio_diaries a ON a.time_entry_id = t.id
+       WHERE t.user_id = $1 AND to_char(t.timestamp, 'YYYY-MM') = $2
+       ORDER BY t.timestamp ASC`,
+      [userId, month]
+    );
 
-      const entries = await query(
-        `SELECT t.*, a.transcription_text 
-         FROM time_entries t
-         LEFT JOIN audio_diaries a ON a.time_entry_id = t.id
-         WHERE t.user_id = $1 AND to_char(t.timestamp, 'YYYY-MM') = $2
-         ORDER BY t.timestamp ASC`,
-        [userId, month]
-      );
+    const techniqueServices = await query(
+      `SELECT * FROM event_technique_services 
+       WHERE user_id = $1 AND to_char(service_date, 'YYYY-MM') = $2
+       ORDER BY service_date ASC`,
+      [userId, month]
+    );
 
-      const techniqueServices = await query(
-        `SELECT * FROM event_technique_services 
-         WHERE user_id = $1 AND to_char(service_date, 'YYYY-MM') = $2
-         ORDER BY service_date ASC`,
-        [userId, month]
-      );
+    const totalTechniquesCount = techniqueServices.reduce((acc, curr) => acc + curr.techniques_count, 0);
+    const totalTechniquesCentavos = techniqueServices.reduce((acc, curr) => acc + Number(curr.total_amount_centavos), 0);
 
-      const totalTechniquesCount = techniqueServices.reduce((acc, curr) => acc + curr.techniques_count, 0);
-      const totalTechniquesCentavos = techniqueServices.reduce((acc, curr) => acc + Number(curr.total_amount_centavos), 0);
+    const trips = await query(
+      `SELECT * FROM trips 
+       WHERE to_char(start_date, 'YYYY-MM') = $1`,
+      [month]
+    );
 
-      const trips = await query(
-        `SELECT * FROM trips 
-         WHERE to_char(start_date, 'YYYY-MM') = $1`,
-        [month]
-      );
+    const travelDaysCount = trips.length * 2;
+    const totalTravelAllowancesCentavos = travelDaysCount * DAILY_TRAVEL_ALLOWANCE_CENTAVOS;
+    const grandTotalCentavos = totalTechniquesCentavos + totalTravelAllowancesCentavos;
 
-      const travelDaysCount = trips.length * 2;
-      const totalTravelAllowancesCentavos = travelDaysCount * DAILY_TRAVEL_ALLOWANCE_CENTAVOS;
-      const grandTotalCentavos = totalTechniquesCentavos + totalTravelAllowancesCentavos;
-
-      return NextResponse.json({
-        success: true,
-        month,
-        employee,
-        entries: entries && entries.length > 0 ? entries : memoryEntries,
-        summary: {
-          entriesCount: (entries && entries.length) || memoryEntries.length,
-          techniquesCount: totalTechniquesCount,
-          totalTechniquesAmountReais: (totalTechniquesCentavos / 100).toFixed(2),
-          travelDaysCount,
-          totalTravelAllowancesReais: (totalTravelAllowancesCentavos / 100).toFixed(2),
-          grandTotalReais: (grandTotalCentavos / 100).toFixed(2),
-        },
-        techniqueServices,
-        trips,
-      });
-    } catch (dbErr) {
-      return NextResponse.json({
-        success: true,
-        month,
-        employee: { id: userId, name: payload.name, cpf: payload.cpf, role: payload.role },
-        entries: memoryEntries,
-        summary: {
-          entriesCount: memoryEntries.length,
-          techniquesCount: 2,
-          totalTechniquesAmountReais: '300.00',
-          travelDaysCount: 2,
-          totalTravelAllowancesReais: '300.00',
-          grandTotalReais: '600.00',
-        },
-        techniqueServices: [
-          { event_name: 'Buffet França - Som', service_date: `${month}-10`, techniques_count: 2, total_amount_centavos: 30000 },
-        ],
-        trips: [],
-      });
-    }
+    return NextResponse.json({
+      success: true,
+      month,
+      employee,
+      entries,
+      summary: {
+        entriesCount: entries.length,
+        techniquesCount: totalTechniquesCount,
+        totalTechniquesAmountReais: (totalTechniquesCentavos / 100).toFixed(2),
+        travelDaysCount,
+        totalTravelAllowancesReais: (totalTravelAllowancesCentavos / 100).toFixed(2),
+        grandTotalReais: (grandTotalCentavos / 100).toFixed(2),
+      },
+      techniqueServices,
+      trips,
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Erro ao gerar espelho de ponto' }, { status: 500 });
   }

@@ -4,9 +4,6 @@ import { verifyToken } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { DAILY_TRAVEL_ALLOWANCE_CENTAVOS } from '@/lib/constants';
 
-// In-memory fallback
-const memoryTrips: any[] = [];
-
 export async function GET() {
   try {
     const cookieStore = cookies();
@@ -17,12 +14,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    try {
-      const trips = await query('SELECT * FROM trips ORDER BY start_date DESC');
-      return NextResponse.json({ success: true, trips });
-    } catch (dbErr) {
-      return NextResponse.json({ success: true, trips: memoryTrips });
-    }
+    const trips = await query('SELECT * FROM trips ORDER BY start_date DESC');
+    return NextResponse.json({ success: true, trips });
   } catch (error) {
     return NextResponse.json({ error: 'Erro ao buscar viagens' }, { status: 500 });
   }
@@ -59,23 +52,11 @@ export async function POST(request: Request) {
     const tripId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    try {
-      await query(
-        `INSERT INTO trips (id, title, destination_city, start_date, end_date, daily_allowance_centavos, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [tripId, title, destinationCity, startDate, endDate, allowance, createdAt]
-      );
-    } catch (dbErr) {
-      memoryTrips.unshift({
-        id: tripId,
-        title,
-        destination_city: destinationCity,
-        start_date: startDate,
-        end_date: endDate,
-        daily_allowance_centavos: allowance,
-        created_at: createdAt,
-      });
-    }
+    await query(
+      `INSERT INTO trips (id, title, destination_city, start_date, end_date, daily_allowance_centavos, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [tripId, title, destinationCity, startDate, endDate, allowance, createdAt]
+    );
 
     return NextResponse.json({
       success: true,

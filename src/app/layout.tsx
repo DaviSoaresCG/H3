@@ -1,5 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: 'EventPoint — Gestão de Ponto, Frota e Relatos por Voz',
@@ -8,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -20,9 +25,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark">
-      <body className="antialiased bg-slate-900 text-slate-100 flex flex-col min-h-screen">
+    <html lang="pt-BR" className={cn("bg-background", "font-sans", geist.variable)}>
+      <body className="antialiased flex flex-col min-h-screen bg-background text-foreground">
         {children}
+        <Toaster position="top-center" />
       </body>
     </html>
   );

@@ -1,17 +1,93 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
+    --background: oklch(0.99 0.002 90);
+    --foreground: oklch(0.16 0.01 260);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.16 0.01 260);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.16 0.01 260);
+    --primary: oklch(0.54 0.15 152);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.96 0.005 90);
+    --secondary-foreground: oklch(0.16 0.01 260);
+    --muted: oklch(0.96 0.005 90);
+    --muted-foreground: oklch(0.5 0.01 260);
+    --accent: oklch(0.72 0.15 62);
+    --accent-foreground: oklch(0.16 0.01 260);
+    --destructive: oklch(0.58 0.22 24);
+    --destructive-foreground: oklch(0.99 0 0);
+    --border: oklch(0.91 0.005 90);
+    --input: oklch(0.91 0.005 90);
+    --ring: oklch(0.54 0.15 152);
+    --chart-1: oklch(0.54 0.15 152);
+    --chart-2: oklch(0.72 0.15 62);
+    --chart-3: oklch(0.58 0.22 24);
+    --chart-4: oklch(0.5 0.12 260);
+    --chart-5: oklch(0.7 0.01 260);
+    --radius: 1rem;
+    --sidebar: oklch(0.17 0.015 255);
+    --sidebar-foreground: oklch(0.96 0.005 90);
+    --sidebar-primary: oklch(0.6 0.16 152);
+    --sidebar-primary-foreground: oklch(0.1 0.01 255);
+    --sidebar-accent: oklch(0.26 0.015 255);
+    --sidebar-accent-foreground: oklch(0.96 0.005 90);
+    --sidebar-border: oklch(0.28 0.015 255);
+    --sidebar-ring: oklch(0.6 0.16 152);
   }
 
   body {
-    background-color: #0f172a;
-    color: #f8fafc;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    @apply bg-background text-foreground;
+  }
+  .theme {
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+  }
+  .dark {
+    --background: oklch(0.16 0.012 255);
+    --foreground: oklch(0.96 0.005 90);
+    --card: oklch(0.2 0.014 255);
+    --card-foreground: oklch(0.96 0.005 90);
+    --popover: oklch(0.2 0.014 255);
+    --popover-foreground: oklch(0.96 0.005 90);
+    --primary: oklch(0.62 0.16 152);
+    --primary-foreground: oklch(0.1 0.01 255);
+    --secondary: oklch(0.26 0.015 255);
+    --secondary-foreground: oklch(0.96 0.005 90);
+    --muted: oklch(0.26 0.015 255);
+    --muted-foreground: oklch(0.68 0.01 260);
+    --accent: oklch(0.72 0.15 62);
+    --accent-foreground: oklch(0.1 0.01 255);
+    --destructive: oklch(0.65 0.2 24);
+    --destructive-foreground: oklch(0.1 0.01 255);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.62 0.16 152);
+    --chart-1: oklch(0.62 0.16 152);
+    --chart-2: oklch(0.72 0.15 62);
+    --chart-3: oklch(0.65 0.2 24);
+    --chart-4: oklch(0.6 0.12 260);
+    --chart-5: oklch(0.7 0.01 260);
+    --sidebar: oklch(0.13 0.012 255);
+    --sidebar-foreground: oklch(0.96 0.005 90);
+    --sidebar-primary: oklch(0.62 0.16 152);
+    --sidebar-primary-foreground: oklch(0.1 0.01 255);
+    --sidebar-accent: oklch(0.24 0.015 255);
+    --sidebar-accent-foreground: oklch(0.96 0.005 90);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.62 0.16 152);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
@@ -31,12 +107,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: var(--muted);
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: var(--border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: var(--muted-foreground);
 }
