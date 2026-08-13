@@ -1,4 +1,5 @@
 import { DAILY_TRAVEL_ALLOWANCE_CENTAVOS } from '@/lib/constants';
+import { normalizeDateStr } from '@/lib/date-utils';
 
 export type TripStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 
@@ -16,8 +17,11 @@ export interface CreateTripParams {
  * Calcula a quantidade de dias corridos inclusivos entre a data inicial e final da viagem.
  */
 export function calculateTripDays(startDate: string, endDate: string): number {
-  const start = new Date(startDate + 'T00:00:00');
-  const end = new Date(endDate + 'T00:00:00');
+  const cleanStart = normalizeDateStr(startDate);
+  const cleanEnd = normalizeDateStr(endDate);
+
+  const start = new Date(cleanStart + 'T00:00:00');
+  const end = new Date(cleanEnd + 'T00:00:00');
 
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
     throw new Error('Data inválida: a data final deve ser igual ou posterior à data inicial.');
@@ -82,21 +86,36 @@ export function validateCreateTrip(params: CreateTripParams): {
 export function determineTripStatus(
   startDate: string,
   endDate: string,
-  isExplicitlyClosed: boolean = false
+  explicitStatusOrClosed?: boolean | TripStatus
 ): TripStatus {
-  if (isExplicitlyClosed) {
+  if (explicitStatusOrClosed === true || explicitStatusOrClosed === 'COMPLETED') {
     return 'COMPLETED';
   }
+  if (explicitStatusOrClosed === 'CANCELLED') {
+    return 'CANCELLED';
+  }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const cleanStart = normalizeDateStr(startDate);
+  const cleanEnd = normalizeDateStr(endDate);
+  const todayStr = normalizeDateStr(new Date());
 
-  if (todayStr < startDate) {
+  if (explicitStatusOrClosed === 'ACTIVE') {
+    if (cleanEnd && todayStr > cleanEnd) {
+      return 'COMPLETED';
+    }
+    return 'ACTIVE';
+  }
+
+  // Automático com base nas datas
+  if (cleanStart && todayStr < cleanStart) {
     return 'PLANNED';
   }
 
-  if (todayStr >= startDate && todayStr <= endDate) {
+  if (cleanStart && cleanEnd && todayStr >= cleanStart && todayStr <= cleanEnd) {
     return 'ACTIVE';
   }
 
   return 'COMPLETED';
 }
+
+

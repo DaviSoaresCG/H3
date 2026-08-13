@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { TripWithDetails, Vehicle, User } from '@/types';
+import { TripWithDetails, Vehicle, User, TripStatus } from '@/types';
 import { calculateTripDays, calculateTripAllowance } from '@/lib/trip-validator';
 import { DAILY_TRAVEL_ALLOWANCE_CENTAVOS } from '@/lib/constants';
+import { formatDateBR } from '@/lib/date-utils';
 
 export default function AdminViagensPage() {
   const [trips, setTrips] = useState<TripWithDetails[]>([]);
@@ -22,6 +23,20 @@ export default function AdminViagensPage() {
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [submittingTrip, setSubmittingTrip] = useState(false);
+
+  // Modal para editar viagem existente
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTripId, setEditTripId] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDestinationCity, setEditDestinationCity] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editParticipantIds, setEditParticipantIds] = useState<string[]>([]);
+  const [editVehicleIds, setEditVehicleIds] = useState<string[]>([]);
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
+  // Modal de confirmação de cancelamento
+  const [cancelingTrip, setCancelingTrip] = useState<TripWithDetails | null>(null);
 
   const fetchTripsData = useCallback(async () => {
     try {
@@ -53,6 +68,7 @@ export default function AdminViagensPage() {
     fetchTripsData();
   }, [fetchTripsData]);
 
+  // Cálculos preview para criação
   let previewDays = 0;
   if (startDate && endDate) {
     try {
@@ -61,9 +77,20 @@ export default function AdminViagensPage() {
       previewDays = 0;
     }
   }
-
   const individualAllowanceCentavos = calculateTripAllowance(previewDays, DAILY_TRAVEL_ALLOWANCE_CENTAVOS);
   const totalTripBudgetCentavos = selectedParticipantIds.length * individualAllowanceCentavos;
+
+  // Cálculos preview para edição
+  let editPreviewDays = 0;
+  if (editStartDate && editEndDate) {
+    try {
+      editPreviewDays = calculateTripDays(editStartDate, editEndDate);
+    } catch {
+      editPreviewDays = 0;
+    }
+  }
+  const editIndividualAllowanceCentavos = calculateTripAllowance(editPreviewDays, DAILY_TRAVEL_ALLOWANCE_CENTAVOS);
+  const editTotalTripBudgetCentavos = editParticipantIds.length * editIndividualAllowanceCentavos;
 
   const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +137,58 @@ export default function AdminViagensPage() {
     }
   };
 
-  const handleUpdateStatus = async (tripId: string, newStatus: 'ACTIVE' | 'COMPLETED' | 'PLANNED') => {
+  const handleOpenEdit = (trip: TripWithDetails) => {
+    setEditTripId(trip.id);
+    setEditTitle(trip.title);
+    setEditDestinationCity(trip.destinationCity);
+    setEditStartDate(trip.startDate);
+    setEditEndDate(trip.endDate);
+    setEditParticipantIds(trip.participants.map((p) => p.userId));
+    setEditVehicleIds(trip.vehicles ? trip.vehicles.map((v) => v.vehicleId) : []);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim() || !editDestinationCity.trim() || !editStartDate || !editEndDate) return;
+    if (editParticipantIds.length === 0) {
+      alert('Selecione pelo menos um colaborador para a viagem.');
+      return;
+    }
+
+    setSubmittingEdit(true);
+    try {
+      const res = await fetch('/api/viagens', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripId: editTripId,
+          title: editTitle,
+          destinationCity: editDestinationCity,
+          startDate: editStartDate,
+          endDate: editEndDate,
+          participantIds: editParticipantIds,
+          vehicleIds: editVehicleIds,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao editar viagem');
+      }
+
+      setFeedback({ type: 'success', text: 'Viagem atualizada com sucesso!' });
+      setTimeout(() => setFeedback(null), 4000);
+      setShowEditModal(false);
+      await fetchTripsData();
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err.message || 'Erro ao editar viagem' });
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
+  const handleUpdateStatus = async (tripId: string, newStatus: TripStatus) => {
     setUpdatingTripId(tripId);
     try {
       const res = await fetch('/api/viagens', {
@@ -123,8 +201,19 @@ export default function AdminViagensPage() {
         throw new Error(data.error || 'Erro ao atualizar viagem');
       }
 
-      setFeedback({ type: 'success', text: `Status da viagem alterado para ${newStatus}!` });
+      const statusLabels: Record<string, string> = {
+        ACTIVE: 'Em Andamento',
+        COMPLETED: 'Concluída',
+        CANCELLED: 'Cancelada',
+        PLANNED: 'Prevista',
+      };
+
+      setFeedback({
+        type: 'success',
+        text: `Status da viagem alterado para ${statusLabels[newStatus] || newStatus}!`,
+      });
       setTimeout(() => setFeedback(null), 4000);
+      setCancelingTrip(null);
       await fetchTripsData();
     } catch (err: any) {
       setFeedback({ type: 'error', text: err.message || 'Erro ao atualizar status' });
@@ -134,10 +223,13 @@ export default function AdminViagensPage() {
   };
 
   const activeTripsCount = trips.filter((t) => t.status === 'ACTIVE').length;
-  const totalBudgetCentavos = trips.reduce(
-    (acc, t) => acc + t.participants.reduce((sum, p) => sum + p.totalAllowanceCentavos, 0),
-    0
-  );
+  const plannedTripsCount = trips.filter((t) => t.status === 'PLANNED').length;
+  const totalBudgetCentavos = trips
+    .filter((t) => t.status !== 'CANCELLED')
+    .reduce(
+      (acc, t) => acc + t.participants.reduce((sum, p) => sum + p.totalAllowanceCentavos, 0),
+      0
+    );
 
   return (
     <div className="space-y-6">
@@ -164,7 +256,7 @@ export default function AdminViagensPage() {
             Gestão de Viagens & Diárias
           </h1>
           <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-            Despacho de equipes para eventos fora da cidade e cálculo de diárias (R$ 150/dia).
+            Despacho de equipes para eventos fora da cidade, alocação de frota e cálculo de diárias (R$ 150/dia).
           </p>
         </div>
 
@@ -184,8 +276,8 @@ export default function AdminViagensPage() {
             <span className="material-symbols-outlined text-[24px]">route</span>
           </div>
           <div>
-            <p className="text-body-sm text-on-surface-variant font-medium">Total de Viagens</p>
-            <p className="text-2xl font-bold text-navy-deep">{trips.length}</p>
+            <p className="text-body-sm text-on-surface-variant font-medium">Previstas / Programadas</p>
+            <p className="text-2xl font-bold text-navy-deep">{plannedTripsCount}</p>
           </div>
         </div>
 
@@ -196,7 +288,7 @@ export default function AdminViagensPage() {
             </span>
           </div>
           <div>
-            <p className="text-body-sm text-on-surface-variant font-medium">Viagens em Andamento</p>
+            <p className="text-body-sm text-on-surface-variant font-medium">Em Andamento</p>
             <p className="text-2xl font-bold text-secondary">{activeTripsCount}</p>
           </div>
         </div>
@@ -206,7 +298,7 @@ export default function AdminViagensPage() {
             <span className="material-symbols-outlined text-[24px]">payments</span>
           </div>
           <div>
-            <p className="text-body-sm text-on-surface-variant font-medium">Custo Total de Diárias</p>
+            <p className="text-body-sm text-on-surface-variant font-medium">Custo Ativo de Diárias</p>
             <p className="text-2xl font-bold text-navy-deep">
               {(totalBudgetCentavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </p>
@@ -236,15 +328,18 @@ export default function AdminViagensPage() {
               const tripTotalBudget = trip.participants.reduce((sum, p) => sum + p.totalAllowanceCentavos, 0);
               const isActive = trip.status === 'ACTIVE';
               const isCompleted = trip.status === 'COMPLETED';
+              const isCancelled = trip.status === 'CANCELLED';
 
               return (
                 <div
                   key={trip.id}
-                  className={`bg-surface-card border border-border-subtle rounded-xl p-5 shadow-soft space-y-4 border-l-4 ${
+                  className={`bg-surface-card border border-border-subtle rounded-xl p-5 shadow-soft space-y-4 border-l-4 transition-all ${
                     isActive
                       ? 'border-l-secondary'
                       : isCompleted
                       ? 'border-l-slate-serious'
+                      : isCancelled
+                      ? 'border-l-error opacity-75'
                       : 'border-l-navy-deep'
                   }`}
                 >
@@ -256,10 +351,18 @@ export default function AdminViagensPage() {
                             ? 'bg-secondary-container text-on-secondary-container'
                             : isCompleted
                             ? 'bg-surface-container text-outline'
+                            : isCancelled
+                            ? 'bg-error-container text-on-error-container'
                             : 'bg-primary-container text-white'
                         }`}
                       >
-                        {isActive ? 'Em Andamento' : isCompleted ? 'Concluída' : 'Programada'}
+                        {isActive
+                          ? 'Em Andamento'
+                          : isCompleted
+                          ? 'Concluída'
+                          : isCancelled
+                          ? 'Cancelada'
+                          : 'Prevista'}
                       </span>
                       <h3 className="text-body-lg font-bold text-navy-deep mt-2">{trip.title}</h3>
                       <p className="text-body-sm text-secondary font-semibold flex items-center gap-1">
@@ -280,15 +383,14 @@ export default function AdminViagensPage() {
                     <div className="flex justify-between">
                       <span>Período:</span>
                       <span className="font-semibold text-navy-deep">
-                        {new Date(trip.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} a{' '}
-                        {new Date(trip.endDate + 'T00:00:00').toLocaleDateString('pt-BR')} ({trip.totalDays} dias)
+                        {formatDateBR(trip.startDate)} a {formatDateBR(trip.endDate)} ({trip.totalDays} dias)
                       </span>
                     </div>
 
                     <div>
                       <span>Equipe Escalada ({trip.participants.length}):</span>
                       <p className="font-semibold text-navy-deep mt-0.5">
-                        {trip.participants.map((p) => p.userName).join(', ')}
+                        {trip.participants.map((p) => p.userName || 'Colaborador').join(', ')}
                       </p>
                     </div>
 
@@ -296,31 +398,61 @@ export default function AdminViagensPage() {
                       <div>
                         <span>Veículo(s):</span>
                         <p className="font-semibold text-navy-deep mt-0.5">
-                          {trip.vehicles.map((v) => `${v.vehicleName} (${v.plate})`).join(', ')}
+                          {trip.vehicles.map((v) => `${v.vehicleName || 'Veículo'} (${v.plate || ''})`).join(', ')}
                         </p>
                       </div>
                     )}
                   </div>
 
-                  <div className="pt-2 border-t border-border-subtle flex gap-2 justify-end">
-                    {trip.status === 'PLANNED' && (
-                      <button
-                        onClick={() => handleUpdateStatus(trip.id, 'ACTIVE')}
-                        disabled={updatingTripId === trip.id}
-                        className="px-3 py-1.5 bg-secondary text-white text-xs font-bold rounded-lg shadow-sm active:translate-y-px"
-                      >
-                        Iniciar Viagem
-                      </button>
-                    )}
-                    {trip.status === 'ACTIVE' && (
-                      <button
-                        onClick={() => handleUpdateStatus(trip.id, 'COMPLETED')}
-                        disabled={updatingTripId === trip.id}
-                        className="px-3 py-1.5 bg-navy-deep text-white text-xs font-bold rounded-lg shadow-sm active:translate-y-px"
-                      >
-                        Concluir e Fechar Diárias
-                      </button>
-                    )}
+                  {/* Ações de Gestão */}
+                  <div className="pt-2 border-t border-border-subtle flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {!isCompleted && !isCancelled && (
+                        <button
+                          onClick={() => handleOpenEdit(trip)}
+                          disabled={updatingTripId === trip.id}
+                          className="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high text-navy-deep text-xs font-bold rounded-lg transition shadow-sm active:translate-y-px flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">edit</span>
+                          <span>Editar</span>
+                        </button>
+                      )}
+
+                      {!isCompleted && !isCancelled && (
+                        <button
+                          onClick={() => setCancelingTrip(trip)}
+                          disabled={updatingTripId === trip.id}
+                          className="px-2.5 py-1.5 text-error hover:bg-error-container/40 text-xs font-bold rounded-lg transition active:translate-y-px flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">cancel</span>
+                          <span>Cancelar</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {trip.status === 'PLANNED' && (
+                        <button
+                          onClick={() => handleUpdateStatus(trip.id, 'ACTIVE')}
+                          disabled={updatingTripId === trip.id}
+                          className="px-3 py-1.5 bg-secondary text-white text-xs font-bold rounded-lg shadow-sm hover:bg-secondary/90 active:translate-y-px flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">play_arrow</span>
+                          <span>Iniciar Viagem</span>
+                        </button>
+                      )}
+
+                      {trip.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => handleUpdateStatus(trip.id, 'COMPLETED')}
+                          disabled={updatingTripId === trip.id}
+                          className="px-3 py-1.5 bg-navy-deep text-white text-xs font-bold rounded-lg shadow-sm hover:bg-slate-serious active:translate-y-px flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                          <span>Concluir e Fechar</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -457,6 +589,11 @@ export default function AdminViagensPage() {
                           className="rounded border-border-subtle text-navy-deep focus:ring-navy-deep"
                         />
                         <span>{v.name} — {v.plate}</span>
+                        {v.status !== 'GARAGE' && (
+                          <span className="ml-auto text-[10px] text-on-surface-variant font-normal">
+                            ({v.status === 'TRIP' ? 'Em Viagem' : 'Na Rua'})
+                          </span>
+                        )}
                       </label>
                     );
                   })}
@@ -480,6 +617,207 @@ export default function AdminViagensPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Viagem */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-card w-full max-w-lg rounded-xl p-6 border border-border-subtle shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+              <h3 className="text-headline-md font-bold text-navy-deep">Editar Viagem</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-on-surface-variant hover:text-navy-deep">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3">
+              <div>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">Título do Evento / Viagem *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">Cidade de Destino *</label>
+                <input
+                  type="text"
+                  value={editDestinationCity}
+                  onChange={(e) => setEditDestinationCity(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-body-sm font-semibold text-navy-deep mb-1">Data Início *</label>
+                  <input
+                    type="date"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-body-sm font-semibold text-navy-deep mb-1">Data Fim *</label>
+                  <input
+                    type="date"
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {editPreviewDays > 0 && (
+                <div className="p-3 bg-secondary-container/40 border border-secondary/30 rounded-lg text-xs text-on-secondary-container">
+                  <p className="font-bold">Duração Estimada: {editPreviewDays} dias</p>
+                  <p>Diária Individual: R$ {(editIndividualAllowanceCentavos / 100).toFixed(2)} por colaborador.</p>
+                  <p className="font-semibold mt-1">
+                    Orçamento Total Estimado: R$ {(editTotalTripBudgetCentavos / 100).toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              {/* Seleção de Colaboradores na Edição */}
+              <div>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
+                  Equipe Escalada ({editParticipantIds.length} selecionados) *
+                </label>
+                <div className="max-h-32 overflow-y-auto border border-border-subtle rounded-lg p-2 space-y-1 bg-surface-container-lowest">
+                  {employees.map((emp) => {
+                    const isSelected = editParticipantIds.includes(emp.id);
+                    return (
+                      <label
+                        key={emp.id}
+                        className="flex items-center gap-2 p-1.5 rounded hover:bg-surface-container cursor-pointer text-xs font-semibold"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditParticipantIds([...editParticipantIds, emp.id]);
+                            } else {
+                              setEditParticipantIds(editParticipantIds.filter((id) => id !== emp.id));
+                            }
+                          }}
+                          className="rounded border-border-subtle text-navy-deep focus:ring-navy-deep"
+                        />
+                        <span>{emp.name} ({emp.role})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Seleção de Veículos na Edição */}
+              <div>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
+                  Veículo(s) da Frota Vinculados
+                </label>
+                <div className="max-h-28 overflow-y-auto border border-border-subtle rounded-lg p-2 space-y-1 bg-surface-container-lowest">
+                  {vehicles.map((v) => {
+                    const isSelected = editVehicleIds.includes(v.id);
+                    return (
+                      <label
+                        key={v.id}
+                        className="flex items-center gap-2 p-1.5 rounded hover:bg-surface-container cursor-pointer text-xs font-semibold"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditVehicleIds([...editVehicleIds, v.id]);
+                            } else {
+                              setEditVehicleIds(editVehicleIds.filter((id) => id !== v.id));
+                            }
+                          }}
+                          className="rounded border-border-subtle text-navy-deep focus:ring-navy-deep"
+                        />
+                        <span>{v.name} — {v.plate}</span>
+                        {v.status !== 'GARAGE' && (
+                          <span className="ml-auto text-[10px] text-on-surface-variant font-normal">
+                            ({v.status === 'TRIP' ? 'Em Viagem' : 'Na Rua'})
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border-subtle flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 py-2.5 bg-surface-container hover:bg-surface-container-high text-navy-deep font-semibold rounded-lg"
+                >
+                  Descartar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEdit || editParticipantIds.length === 0}
+                  className="flex-1 py-2.5 bg-navy-deep text-white font-bold rounded-lg shadow-soft active:translate-y-px disabled:opacity-50"
+                >
+                  {submittingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Cancelamento */}
+      {cancelingTrip && (
+        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-card w-full max-w-md rounded-xl p-6 border border-border-subtle shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-error">
+              <span className="material-symbols-outlined text-3xl">warning</span>
+              <h3 className="text-headline-md font-bold text-navy-deep">Cancelar Viagem?</h3>
+            </div>
+
+            <p className="text-body-sm text-on-surface-variant">
+              Você está prestes a cancelar a viagem <strong>"{cancelingTrip.title}"</strong> ({cancelingTrip.destinationCity}).
+            </p>
+
+            <div className="p-3 bg-error-container/40 border border-error/30 rounded-lg text-xs text-on-error-container space-y-1">
+              <p className="font-bold">Ações automáticas ao cancelar:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                <li>Todos os veículos vinculados serão liberados para a garagem.</li>
+                <li>As diárias previstas serão removidas do cálculo mensal.</li>
+                <li>O status será marcado como Cancelada.</li>
+              </ul>
+            </div>
+
+            <div className="pt-3 border-t border-border-subtle flex gap-3">
+              <button
+                type="button"
+                onClick={() => setCancelingTrip(null)}
+                className="flex-1 py-2.5 bg-surface-container hover:bg-surface-container-high text-navy-deep font-semibold rounded-lg"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateStatus(cancelingTrip.id, 'CANCELLED')}
+                disabled={updatingTripId === cancelingTrip.id}
+                className="flex-1 py-2.5 bg-error text-white font-bold rounded-lg shadow-soft active:translate-y-px disabled:opacity-50"
+              >
+                {updatingTripId === cancelingTrip.id ? 'Cancelando...' : 'Confirmar Cancelamento'}
+              </button>
+            </div>
           </div>
         </div>
       )}

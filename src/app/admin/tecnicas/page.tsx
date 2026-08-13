@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { EventTechniqueServiceWithDetails, User } from '@/types';
+import { formatDateBR } from '@/lib/date-utils';
 
 export default function AdminTecnicasPage() {
   const [services, setServices] = useState<EventTechniqueServiceWithDetails[]>([]);
@@ -210,7 +211,7 @@ export default function AdminTecnicasPage() {
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap">{service.eventName}</td>
                     <td className="px-5 py-3.5 whitespace-nowrap font-mono text-xs">
-                      {new Date(service.serviceDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                      {formatDateBR(service.serviceDate)}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap">
                       <span className="px-2.5 py-1 rounded text-label-bold uppercase bg-secondary-container text-on-secondary-container">

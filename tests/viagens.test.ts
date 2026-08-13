@@ -94,11 +94,39 @@ describe('Módulo de Gestão de Viagens e Diárias de Viagem (Issue #6)', () => 
   describe('Determinação de Status da Viagem', () => {
     test('Retorna status COMPLETED se explicitamente encerrada', () => {
       expect(determineTripStatus('2026-08-01', '2026-08-05', true)).toBe('COMPLETED');
+      expect(determineTripStatus('2026-08-01', '2026-08-05', 'COMPLETED')).toBe('COMPLETED');
     });
 
-    test('Retorna status baseado na data de hoje', () => {
+    test('Retorna status CANCELLED se explicitamente cancelada', () => {
+      expect(determineTripStatus('2026-08-01', '2026-08-05', 'CANCELLED')).toBe('CANCELLED');
+    });
+
+    test('Retorna status ACTIVE quando iniciada manualmente ou quando a data atual está no período', () => {
       const today = new Date().toISOString().split('T')[0];
       expect(determineTripStatus(today, today, false)).toBe('ACTIVE');
+      expect(determineTripStatus('2026-12-01', '2026-12-05', 'ACTIVE')).toBe('ACTIVE');
+    });
+
+    test('Retorna status PLANNED quando a data da viagem é futura e status é PLANNED', () => {
+      const future = new Date();
+      future.setDate(future.getDate() + 10);
+      const futureStr = future.toISOString().split('T')[0];
+
+      const futureEnd = new Date();
+      futureEnd.setDate(futureEnd.getDate() + 12);
+      const futureEndStr = futureEnd.toISOString().split('T')[0];
+
+      expect(determineTripStatus(futureStr, futureEndStr, 'PLANNED')).toBe('PLANNED');
+    });
+
+    test('Transita automaticamente para ACTIVE quando a data do evento chega', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      // Quando a viagem era prevista mas a data de início é hoje
+      expect(determineTripStatus(today, tomorrowStr, 'PLANNED')).toBe('ACTIVE');
     });
   });
 });

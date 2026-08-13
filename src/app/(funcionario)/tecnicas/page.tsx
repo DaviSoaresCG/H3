@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, EventTechniqueServiceWithDetails } from '@/types';
 import { TECHNIQUE_SERVICE_ALLOWANCE_CENTAVOS } from '@/lib/constants';
 import { calculateTechniquesTotal } from '@/lib/technique-validator';
+import { formatDateBR, getTodayDateStr } from '@/lib/date-utils';
 
 export default function TecnicasPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -12,7 +13,7 @@ export default function TecnicasPage() {
 
   // Form State
   const [eventName, setEventName] = useState('');
-  const [serviceDate, setServiceDate] = useState(new Date().toISOString().substring(0, 10));
+  const [serviceDate, setServiceDate] = useState(getTodayDateStr());
   const [techniquesCount, setTechniquesCount] = useState<number>(1);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -175,7 +176,7 @@ export default function TecnicasPage() {
                   <div>
                     <h3 className="font-bold text-navy-deep text-body-md">{service.eventName}</h3>
                     <p className="text-xs text-on-surface-variant">
-                      Data do serviço: {new Date(service.serviceDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                      Data do serviço: {formatDateBR(service.serviceDate)}
                     </p>
                   </div>
 

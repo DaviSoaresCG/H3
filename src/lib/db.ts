@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import { ENV } from '@/lib/constants';
 
 let pool: Pool | null = null;
+let isSchemaEnsured = false;
 
 export function getDbPool(): Pool {
   if (!pool) {
@@ -15,6 +16,19 @@ export function getDbPool(): Pool {
   return pool;
 }
 
+async function ensureDbSchema(p: Pool) {
+  if (isSchemaEnsured) return;
+  try {
+    await p.query(`
+      ALTER TABLE trips DROP CONSTRAINT IF EXISTS trips_status_check;
+      ALTER TABLE trips ADD CONSTRAINT trips_status_check CHECK (status IN ('PLANNED', 'ACTIVE', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'));
+    `);
+    isSchemaEnsured = true;
+  } catch {
+    // Ignora se tabela não existe ou erro de permissão
+  }
+}
+
 /**
  * Executa uma consulta SQL no banco PostgreSQL.
  * Caso o banco não esteja rodando ou a base não exista, captura o erro e permite o fallback.
@@ -22,6 +36,9 @@ export function getDbPool(): Pool {
 export async function query<T = any>(text: string, params: any[] = []): Promise<T[]> {
   try {
     const p = getDbPool();
+    if (!isSchemaEnsured) {
+      await ensureDbSchema(p);
+    }
     const result = await p.query(text, params);
     return result.rows as T[];
   } catch (error: any) {
@@ -37,3 +54,4 @@ export async function queryOne<T = any>(text: string, params: any[] = []): Promi
   const rows = await query<T>(text, params);
   return rows.length > 0 ? rows[0] : null;
 }
+

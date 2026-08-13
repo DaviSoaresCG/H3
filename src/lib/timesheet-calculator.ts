@@ -17,6 +17,8 @@ export interface TimesheetSummaryParams {
   travelDaysCount?: number;
   sundayRule?: SundayHolidayRule;
   hourlyRateCentavos?: number;
+  customTechniquesCentavos?: number;
+  customTravelCentavos?: number;
 }
 
 export interface TimesheetSummaryResult {
@@ -76,6 +78,7 @@ export function isSundayDate(dateInput: string): boolean {
 
 /**
  * Consolida as horas trabalhadas agrupando por dia e totaliza bônus/adicionais para o fechamento mensal.
+ * Calcula horas normais e horas extras com base na jornada padrão diária de 8 horas.
  */
 export function calculateTimesheetSummary(
   params: TimesheetSummaryParams
@@ -86,10 +89,13 @@ export function calculateTimesheetSummary(
     travelDaysCount = 0,
     sundayRule = 'OVERTIME_100',
     hourlyRateCentavos = 2500, // R$ 25,00/h base
+    customTechniquesCentavos,
+    customTravelCentavos,
   } = params;
 
-  let totalWorkedMs = 0;
-  let sundayMs = 0;
+  let regularHoursAccum = 0;
+  let overtimeHoursAccum = 0;
+  let sundayHolidayHoursAccum = 0;
   const sundayDatesWorked = new Set<string>();
 
   // Agrupa batidas por data (YYYY-MM-DD)
@@ -133,18 +139,28 @@ export function calculateTimesheetSummary(
     }
 
     if (dayWorkMs > 0) {
-      totalWorkedMs += dayWorkMs;
+      const dayHours = dayWorkMs / (1000 * 60 * 60);
+
       if (isSundayDate(dayKey)) {
-        sundayMs += dayWorkMs;
+        sundayHolidayHoursAccum += dayHours;
         sundayDatesWorked.add(dayKey);
+      } else {
+        // Jornada padrão: até 8 horas normais por dia
+        const standardDailyLimit = 8.0;
+        if (dayHours <= standardDailyLimit) {
+          regularHoursAccum += dayHours;
+        } else {
+          regularHoursAccum += standardDailyLimit;
+          overtimeHoursAccum += (dayHours - standardDailyLimit);
+        }
       }
     }
   }
 
-  const totalWorkedHours = Number((totalWorkedMs / (1000 * 60 * 60)).toFixed(2));
-  const sundayHolidayHours = Number((sundayMs / (1000 * 60 * 60)).toFixed(2));
-  const regularHours = Math.max(0, Number((totalWorkedHours - sundayHolidayHours).toFixed(2)));
-  const overtimeHours = Number(Math.max(0, totalWorkedHours - 176).toFixed(2));
+  const regularHours = Number(regularHoursAccum.toFixed(2));
+  const overtimeHours = Number(overtimeHoursAccum.toFixed(2));
+  const sundayHolidayHours = Number(sundayHolidayHoursAccum.toFixed(2));
+  const totalWorkedHours = Number((regularHours + overtimeHours + sundayHolidayHours).toFixed(2));
 
   const sundayDaysCount = sundayDatesWorked.size;
   let sundayBonusCentavos = 0;
@@ -157,8 +173,16 @@ export function calculateTimesheetSummary(
     sundayBonusCentavos = Math.round(sundayHolidayHours * hourlyRateCentavos);
   }
 
-  const totalTechniquesCentavos = techniqueServicesCount * TECHNIQUE_SERVICE_ALLOWANCE_CENTAVOS;
-  const totalTravelCentavos = travelDaysCount * DAILY_TRAVEL_ALLOWANCE_CENTAVOS;
+  const totalTechniquesCentavos =
+    typeof customTechniquesCentavos === 'number'
+      ? customTechniquesCentavos
+      : techniqueServicesCount * TECHNIQUE_SERVICE_ALLOWANCE_CENTAVOS;
+
+  const totalTravelCentavos =
+    typeof customTravelCentavos === 'number'
+      ? customTravelCentavos
+      : travelDaysCount * DAILY_TRAVEL_ALLOWANCE_CENTAVOS;
+
   const grandTotalBonusCentavos = totalTechniquesCentavos + totalTravelCentavos + sundayBonusCentavos;
 
   return {

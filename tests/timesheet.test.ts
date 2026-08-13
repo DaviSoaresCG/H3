@@ -105,9 +105,76 @@ describe('Módulo de Fechamento de Folha, Ajustes Auditados e Espelho (Issue #9)
       });
 
       expect(summary.totalWorkedHours).toBe(8); // 8:00 às 17:00 com 1h intervalo = 8h
+      expect(summary.regularHours).toBe(8);
+      expect(summary.overtimeHours).toBe(0);
       expect(summary.totalTechniquesCentavos).toBe(30000); // R$ 300,00
       expect(summary.totalTravelCentavos).toBe(45000); // R$ 450,00
       expect(summary.grandTotalBonusCentavos).toBe(75000); // R$ 750,00
+    });
+
+    test('Calcula horas extras diárias quando a jornada excede 8 horas no dia', () => {
+      const overtimeEntries: StoredTimeEntry[] = [
+        {
+          id: '1',
+          user_id: 'u1',
+          timestamp: '2026-08-11T08:00:00Z', // Terça-feira
+          entry_type: 'CLOCK_IN',
+          latitude: null,
+          longitude: null,
+          gps_status: 'OK',
+          is_outside_hq: false,
+        },
+        {
+          id: '2',
+          user_id: 'u1',
+          timestamp: '2026-08-11T12:00:00Z',
+          entry_type: 'MEAL_START',
+          latitude: null,
+          longitude: null,
+          gps_status: 'OK',
+          is_outside_hq: false,
+        },
+        {
+          id: '3',
+          user_id: 'u1',
+          timestamp: '2026-08-11T13:00:00Z',
+          entry_type: 'MEAL_END',
+          latitude: null,
+          longitude: null,
+          gps_status: 'OK',
+          is_outside_hq: false,
+        },
+        {
+          id: '4',
+          user_id: 'u1',
+          timestamp: '2026-08-11T19:00:00Z', // 10 horas de trabalho (08h às 19h menos 1h refeição)
+          entry_type: 'CLOCK_OUT',
+          latitude: null,
+          longitude: null,
+          gps_status: 'OK',
+          is_outside_hq: false,
+        },
+      ];
+
+      const summary = calculateTimesheetSummary({
+        entries: overtimeEntries,
+      });
+
+      expect(summary.totalWorkedHours).toBe(10);
+      expect(summary.regularHours).toBe(8);
+      expect(summary.overtimeHours).toBe(2); // 2h de hora extra
+    });
+
+    test('Aplica valores customizados em centavos de viagens e técnicas reais', () => {
+      const summary = calculateTimesheetSummary({
+        entries: mockWeekdayEntries,
+        customTechniquesCentavos: 45000, // R$ 450,00 reais do DB
+        customTravelCentavos: 90000, // R$ 900,00 reais do DB
+      });
+
+      expect(summary.totalTechniquesCentavos).toBe(45000);
+      expect(summary.totalTravelCentavos).toBe(90000);
+      expect(summary.grandTotalBonusCentavos).toBe(135000);
     });
 
     test('Aplica cálculo de domingo com Diária Fixa (R$ 150/dia)', () => {

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
     try {
       let sql = `SELECT t.id, t.user_id as "userId", t.event_name as "eventName", 
-                        t.service_date as "serviceDate", t.techniques_count as "techniquesCount", 
+                        TO_CHAR(t.service_date, 'YYYY-MM-DD') as "serviceDate", t.techniques_count as "techniquesCount", 
                         t.amount_per_technique_centavos as "amountPerTechniqueCentavos", 
                         t.total_amount_centavos as "totalAmountCentavos", t.notes, t.created_at as "createdAt",
                         u.name as "employeeName", u.cpf as "employeeCpf"
@@ -100,6 +100,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
+    const cleanServiceDate = validation.normalizedDate || serviceDate.trim().substring(0, 10);
     const amountPerTechnique = TECHNIQUE_SERVICE_ALLOWANCE_CENTAVOS; // R$ 150,00
     const totalAmount = calculateTechniquesTotal(count, amountPerTechnique);
     const serviceId = crypto.randomUUID();
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
       employeeName: payload.name,
       employeeCpf: payload.cpf,
       eventName,
-      serviceDate,
+      serviceDate: cleanServiceDate,
       techniquesCount: count,
       amountPerTechniqueCentavos: amountPerTechnique,
       totalAmountCentavos: totalAmount,
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
         `INSERT INTO event_technique_services 
            (id, user_id, event_name, service_date, techniques_count, amount_per_technique_centavos, total_amount_centavos, notes, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [serviceId, payload.userId, eventName, serviceDate, count, amountPerTechnique, totalAmount, notes || null, createdAt]
+        [serviceId, payload.userId, eventName, cleanServiceDate, count, amountPerTechnique, totalAmount, notes || null, createdAt]
       );
     } catch {
       memoryTechniques.unshift(record);

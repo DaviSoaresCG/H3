@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TripWithDetails, User } from '@/types';
 import { DAILY_TRAVEL_ALLOWANCE_CENTAVOS } from '@/lib/constants';
+import { formatDateBR } from '@/lib/date-utils';
 
 export default function ViagensFuncionarioPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -112,6 +113,7 @@ export default function ViagensFuncionarioPage() {
 
               const isActive = trip.status === 'ACTIVE';
               const isCompleted = trip.status === 'COMPLETED';
+              const isCancelled = trip.status === 'CANCELLED';
 
               return (
                 <div
@@ -121,6 +123,8 @@ export default function ViagensFuncionarioPage() {
                       ? 'border-l-secondary'
                       : isCompleted
                       ? 'border-l-slate-serious'
+                      : isCancelled
+                      ? 'border-l-error opacity-75'
                       : 'border-l-navy-deep'
                   }`}
                 >
@@ -133,10 +137,12 @@ export default function ViagensFuncionarioPage() {
                               ? 'bg-secondary-container text-on-secondary-container'
                               : isCompleted
                               ? 'bg-surface-container text-outline'
+                              : isCancelled
+                              ? 'bg-error-container text-on-error-container'
                               : 'bg-primary-container text-white'
                           }`}
                         >
-                          {isActive ? 'Em Andamento' : isCompleted ? 'Concluída' : 'Programada'}
+                          {isActive ? 'Em Andamento' : isCompleted ? 'Concluída' : isCancelled ? 'Cancelada' : 'Prevista'}
                         </span>
                       </div>
                       <h3 className="font-bold text-navy-deep text-body-lg">{trip.title}</h3>
@@ -161,8 +167,7 @@ export default function ViagensFuncionarioPage() {
                     <div className="bg-surface-container-low p-3 rounded-lg">
                       <span className="text-on-surface-variant text-xs">Período ({trip.totalDays} dias)</span>
                       <p className="font-semibold text-navy-deep mt-0.5">
-                        {new Date(trip.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} a{' '}
-                        {new Date(trip.endDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        {formatDateBR(trip.startDate)} a {formatDateBR(trip.endDate)}
                       </p>
                     </div>
 

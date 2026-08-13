@@ -1,4 +1,5 @@
 import { TECHNIQUE_SERVICE_ALLOWANCE_CENTAVOS } from '@/lib/constants';
+import { normalizeDateStr } from '@/lib/date-utils';
 
 export interface CreateTechniqueParams {
   eventName?: string;
@@ -24,6 +25,7 @@ export function calculateTechniquesTotal(
 export function validateCreateTechnique(params: CreateTechniqueParams): {
   valid: boolean;
   error?: string;
+  normalizedDate?: string;
 } {
   const { eventName, serviceDate, techniquesCount } = params;
 
@@ -35,13 +37,26 @@ export function validateCreateTechnique(params: CreateTechniqueParams): {
     return { valid: false, error: 'Data do serviço é obrigatória.' };
   }
 
-  const parsedDate = new Date(serviceDate + 'T00:00:00');
+  const cleanDateStr = normalizeDateStr(serviceDate);
+  if (!cleanDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(cleanDateStr)) {
+    return { valid: false, error: 'Data do serviço inválida.' };
+  }
+
+  const parsedDate = new Date(cleanDateStr + 'T00:00:00');
   if (isNaN(parsedDate.getTime())) {
     return { valid: false, error: 'Data do serviço inválida.' };
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  if (serviceDate > todayStr) {
+  // Tolerância para fusos horários (UTC vs Brasília UTC-3)
+  const now = new Date();
+  const todayUTC = now.toISOString().split('T')[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayLocal = `${year}-${month}-${day}`;
+  const maxAllowedDate = todayLocal > todayUTC ? todayLocal : todayUTC;
+
+  if (cleanDateStr > maxAllowedDate) {
     return {
       valid: false,
       error: 'Data futura não autorizada. O serviço de técnica só pode ser registrado na data do evento ou em datas passadas.',
@@ -55,5 +70,6 @@ export function validateCreateTechnique(params: CreateTechniqueParams): {
     };
   }
 
-  return { valid: true };
+  return { valid: true, normalizedDate: cleanDateStr };
 }
+

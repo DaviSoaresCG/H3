@@ -78,9 +78,20 @@ describe('Módulo de Adicional de Serviços de Técnica em Eventos (Issue #7)', 
       expect(resultNeg.error).toContain('Quantidade inválida');
     });
 
+    test('Aceita e normaliza string ISO para data YYYY-MM-DD', () => {
+      const result = validateCreateTechnique({
+        eventName: 'Evento Show',
+        serviceDate: `${todayStr}T00:00:00.000Z`,
+        techniquesCount: 1,
+      });
+
+      expect(result.valid).toBe(true);
+      expect(result.normalizedDate).toBe(todayStr);
+    });
+
     test('Rejeita data futura (amanhã em diante)', () => {
       const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setDate(tomorrow.getDate() + 2);
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
       const result = validateCreateTechnique({

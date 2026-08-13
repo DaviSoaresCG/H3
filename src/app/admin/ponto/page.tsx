@@ -5,6 +5,9 @@ import { User } from '@/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { formatDateBR } from '@/lib/date-utils';
+
+type ActiveTab = 'entries' | 'trips' | 'techniques' | 'summary';
 
 export default function AdminPontoPage() {
   const [reportData, setReportData] = useState<any>(null);
@@ -12,6 +15,7 @@ export default function AdminPontoPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
   const [sundayRule, setSundayRule] = useState<'OVERTIME_100' | 'FIXED_DAILY'>('OVERTIME_100');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('entries');
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -135,9 +139,10 @@ export default function AdminPontoPage() {
     doc.setFont('helvetica', 'bold');
     doc.text(`Horas Trabalhadas: ${reportData.summary?.totalWorkedHours || 0}h`, 14, 52);
     doc.text(`Horas Extras: ${reportData.summary?.overtimeHours || 0}h`, 65, 52);
-    doc.text(`Diárias de Viagem: R$ ${reportData.summary?.totalTravelAllowancesReais || '0.00'}`, 110, 52);
+    doc.text(`Diárias Viagem: R$ ${reportData.summary?.totalTravelAllowancesReais || '0.00'}`, 110, 52);
     doc.text(`Adic. Técnicas: R$ ${reportData.summary?.totalTechniquesAmountReais || '0.00'}`, 155, 52);
 
+    // 1. Tabela de Batidas de Ponto
     const tableData = (reportData.entries || []).map((entry: any) => [
       new Date(entry.timestamp).toLocaleDateString('pt-BR'),
       new Date(entry.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
@@ -150,20 +155,87 @@ export default function AdminPontoPage() {
     autoTable(doc, {
       startY: 58,
       head: [['Data', 'Horário', 'Tipo Batida', 'Status GPS', 'Localização', 'Ajustado?']],
-      body: tableData,
+      body: tableData.length > 0 ? tableData : [['Nenhum registro no período', '', '', '', '', '']],
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2 },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 200;
-    if (finalY < 250) {
-      doc.line(20, finalY + 25, 90, finalY + 25);
-      doc.text('Assinatura do Colaborador', 30, finalY + 30);
+    let lastY = (doc as any).lastAutoTable.finalY || 100;
 
-      doc.line(120, finalY + 25, 190, finalY + 25);
-      doc.text('Assinatura do Gestor', 135, finalY + 30);
+    // 2. Tabela de Diárias de Viagem (se houver)
+    if (reportData.tripParticipations && reportData.tripParticipations.length > 0) {
+      if (lastY > 230) {
+        doc.addPage();
+        lastY = 20;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Diárias de Viagem Realizadas no Período (R$ 150/dia):', 14, lastY + 8);
+
+      const tripsData = reportData.tripParticipations.map((tp: any) => [
+        tp.title,
+        tp.destinationCity,
+        `${formatDateBR(tp.startDate)} a ${formatDateBR(tp.endDate)}`,
+        `${tp.daysCount} dia(s)`,
+        `R$ ${(Number(tp.totalAllowanceCentavos || 0) / 100).toFixed(2)}`,
+      ]);
+
+      autoTable(doc, {
+        startY: lastY + 12,
+        head: [['Evento / Viagem', 'Destino', 'Período', 'Duração', 'Valor Diárias']],
+        body: tripsData,
+        theme: 'grid',
+        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 2 },
+      });
+
+      lastY = (doc as any).lastAutoTable.finalY || lastY + 40;
     }
+
+    // 3. Tabela de Adicionais de Técnicas (se houver)
+    if (reportData.techniqueServices && reportData.techniqueServices.length > 0) {
+      if (lastY > 230) {
+        doc.addPage();
+        lastY = 20;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Adicionais de Técnicas de Eventos no Período (R$ 150/técnica):', 14, lastY + 8);
+
+      const tecsData = reportData.techniqueServices.map((tec: any) => [
+        formatDateBR(tec.serviceDate),
+        tec.eventName,
+        `${tec.techniquesCount} técnica(s)`,
+        `R$ ${(Number(tec.totalAmountCentavos || 0) / 100).toFixed(2)}`,
+        tec.notes || '-',
+      ]);
+
+      autoTable(doc, {
+        startY: lastY + 12,
+        head: [['Data', 'Evento', 'Qtd Técnicas', 'Valor Total', 'Observações']],
+        body: tecsData,
+        theme: 'grid',
+        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 2 },
+      });
+
+      lastY = (doc as any).lastAutoTable.finalY || lastY + 40;
+    }
+
+    if (lastY > 240) {
+      doc.addPage();
+      lastY = 20;
+    }
+
+    doc.line(20, lastY + 25, 90, lastY + 25);
+    doc.setFontSize(8);
+    doc.text('Assinatura do Colaborador', 30, lastY + 30);
+
+    doc.line(120, lastY + 25, 190, lastY + 25);
+    doc.text('Assinatura do Gestor', 135, lastY + 30);
 
     doc.save(`espelho-ponto-${reportData.employee?.cpf || 'colaborador'}-${reportData.month}.pdf`);
   };
@@ -172,7 +244,10 @@ export default function AdminPontoPage() {
   const exportExcel = () => {
     if (!reportData) return;
 
-    const dataToExport = (reportData.entries || []).map((entry: any) => ({
+    const wb = XLSX.utils.book_new();
+
+    // 1. Aba Batidas de Ponto
+    const pontoData = (reportData.entries || []).map((entry: any) => ({
       Data: new Date(entry.timestamp).toLocaleDateString('pt-BR'),
       Horário: new Date(entry.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       'Tipo de Registro': formatEntryType(entry.entry_type),
@@ -182,10 +257,54 @@ export default function AdminPontoPage() {
       'Motivo Ajuste': entry.adjustment_reason || '-',
       'Relato de Voz / Transcrição': entry.transcription_text || '-',
     }));
+    const wsPonto = XLSX.utils.json_to_sheet(pontoData);
+    XLSX.utils.book_append_sheet(wb, wsPonto, 'Batidas de Ponto');
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Espelho de Ponto');
+    // 2. Aba Diárias de Viagem
+    if (reportData.tripParticipations && reportData.tripParticipations.length > 0) {
+      const tripsData = reportData.tripParticipations.map((tp: any) => ({
+        'Evento / Viagem': tp.title,
+        'Cidade Destino': tp.destinationCity,
+        'Data Início': formatDateBR(tp.startDate),
+        'Data Fim': formatDateBR(tp.endDate),
+        'Dias de Viagem': tp.daysCount,
+        'Valor Total (R$)': (Number(tp.totalAllowanceCentavos || 0) / 100).toFixed(2),
+      }));
+      const wsTrips = XLSX.utils.json_to_sheet(tripsData);
+      XLSX.utils.book_append_sheet(wb, wsTrips, 'Diárias de Viagem');
+    }
+
+    // 3. Aba Técnicas de Eventos
+    if (reportData.techniqueServices && reportData.techniqueServices.length > 0) {
+      const tecsData = reportData.techniqueServices.map((tec: any) => ({
+        Data: formatDateBR(tec.serviceDate),
+        'Nome do Evento': tec.eventName,
+        'Quantidade de Técnicas': tec.techniquesCount,
+        'Valor Total (R$)': (Number(tec.totalAmountCentavos || 0) / 100).toFixed(2),
+        Observações: tec.notes || '-',
+      }));
+      const wsTecs = XLSX.utils.json_to_sheet(tecsData);
+      XLSX.utils.book_append_sheet(wb, wsTecs, 'Técnicas de Eventos');
+    }
+
+    // 4. Aba Resumo Consolidado
+    const summaryData = [
+      { Indicador: 'Colaborador', Valor: reportData.employee?.name || '-' },
+      { Indicador: 'CPF', Valor: reportData.employee?.cpf || '-' },
+      { Indicador: 'Mês de Referência', Valor: reportData.month },
+      { Indicador: 'Total de Horas Trabalhadas', Valor: `${reportData.summary?.totalWorkedHours || 0}h` },
+      { Indicador: 'Horas Normais', Valor: `${reportData.summary?.regularHours || 0}h` },
+      { Indicador: 'Horas Extras (excedente 8h/dia)', Valor: `${reportData.summary?.overtimeHours || 0}h` },
+      { Indicador: 'Horas de Domingo / Feriado', Valor: `${reportData.summary?.sundayHolidayHours || 0}h` },
+      { Indicador: 'Qtd Dias de Viagem', Valor: reportData.summary?.travelDaysCount || 0 },
+      { Indicador: 'Total Diárias de Viagem (R$)', Valor: reportData.summary?.totalTravelAllowancesReais || '0.00' },
+      { Indicador: 'Qtd Serviços de Técnicas', Valor: reportData.summary?.techniquesCount || 0 },
+      { Indicador: 'Total Adicionais de Técnicas (R$)', Valor: reportData.summary?.totalTechniquesAmountReais || '0.00' },
+      { Indicador: 'Total Bruto de Adicionais / Bônus (R$)', Valor: reportData.summary?.grandTotalBonusReais || '0.00' },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumo Mensal');
+
     XLSX.writeFile(wb, `espelho-${reportData.employee?.cpf || 'folha'}-${reportData.month}.xlsx`);
   };
 
@@ -228,11 +347,11 @@ export default function AdminPontoPage() {
           Relatórios & Espelho de Ponto
         </h1>
         <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-          Conferência de jornada, auditoria de ajustes manuais e exportação de folha em PDF e Excel.
+          Conferência de jornada diária, diárias de viagem (R$ 150/dia), adicionais de técnicas (R$ 150/técnica) e exportação da folha.
         </p>
       </div>
 
-      {/* Bento Grid: Filtros (8 colunas) & Ações de Exportação (4 colunas) */}
+      {/* Bento Grid: Filtros & Ações de Exportação */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Painel de Filtros */}
         <div className="lg:col-span-8 bg-surface-card rounded-xl border border-border-subtle p-6 shadow-soft space-y-4">
@@ -309,23 +428,23 @@ export default function AdminPontoPage() {
               Ações de Exportação
             </h2>
             <p className="text-body-sm text-on-surface-variant mt-1">
-              {reportData?.entries?.length || 0} registros encontrados no período.
+              {reportData?.entries?.length || 0} batidas, {reportData?.tripParticipations?.length || 0} viagens e {reportData?.techniqueServices?.length || 0} serviços de técnica no período.
             </p>
           </div>
 
           <div className="space-y-3">
             <button
               onClick={exportPDF}
-              disabled={!reportData || reportData.entries?.length === 0}
+              disabled={!reportData}
               className="w-full bg-navy-deep text-on-primary h-12 rounded-lg hover:bg-slate-serious transition-colors shadow-soft active:translate-y-px flex items-center justify-center gap-2.5 font-bold disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
-              <span>Exportar PDF (Espelho)</span>
+              <span>Exportar PDF Completo</span>
             </button>
 
             <button
               onClick={exportExcel}
-              disabled={!reportData || reportData.entries?.length === 0}
+              disabled={!reportData}
               className="w-full bg-surface-container-lowest text-navy-deep border border-border-subtle h-12 rounded-lg hover:bg-surface-container transition-colors shadow-sm active:translate-y-px flex items-center justify-center gap-2.5 font-bold disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[20px] text-success-vibrant">
@@ -341,149 +460,369 @@ export default function AdminPontoPage() {
       {reportData?.summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft">
-            <span className="font-label-caps text-on-surface-variant uppercase font-bold">Horas Trabalhadas</span>
+            <span className="font-label-caps text-on-surface-variant uppercase font-bold text-xs">Total Horas Trabalhadas</span>
             <p className="text-2xl font-bold text-navy-deep mt-1">
               {reportData.summary.totalWorkedHours}h
+            </p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">
+              {reportData.summary.regularHours}h normais + {reportData.summary.overtimeHours}h extras
             </p>
           </div>
 
           <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft border-l-4 border-l-alert-warning">
-            <span className="font-label-caps text-on-surface-variant uppercase font-bold">Horas Extras</span>
+            <span className="font-label-caps text-on-surface-variant uppercase font-bold text-xs">Horas Extras (&gt;8h/dia)</span>
             <p className="text-2xl font-bold text-alert-warning mt-1">
               {reportData.summary.overtimeHours}h
+            </p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">
+              Jornada padrão de 8h/dia
             </p>
           </div>
 
           <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft border-l-4 border-l-secondary">
-            <span className="font-label-caps text-on-surface-variant uppercase font-bold">Diárias de Viagem</span>
+            <span className="font-label-caps text-on-surface-variant uppercase font-bold text-xs">Diárias de Viagem</span>
             <p className="text-2xl font-bold text-secondary mt-1">
               R$ {reportData.summary.totalTravelAllowancesReais || '0.00'}
+            </p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">
+              {reportData.summary.travelDaysCount || 0} dias em eventos fora
             </p>
           </div>
 
           <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft border-l-4 border-l-navy-deep">
-            <span className="font-label-caps text-on-surface-variant uppercase font-bold">Adicionais de Técnicas</span>
+            <span className="font-label-caps text-on-surface-variant uppercase font-bold text-xs">Adicionais de Técnicas</span>
             <p className="text-2xl font-bold text-navy-deep mt-1">
               R$ {reportData.summary.totalTechniquesAmountReais || '0.00'}
+            </p>
+            <p className="text-[11px] text-on-surface-variant mt-0.5">
+              {reportData.summary.techniquesCount || 0} técnicas (som, luz, LED...)
             </p>
           </div>
         </div>
       )}
 
-      {/* Tabela de Batidas do Espelho de Ponto */}
+      {/* Navegação por Abas para Detalhamento */}
       <div className="bg-surface-card rounded-xl border border-border-subtle overflow-hidden shadow-soft">
-        <div className="p-4 border-b border-border-subtle bg-surface-container-lowest flex justify-between items-center">
-          <h3 className="font-headline-md font-bold text-navy-deep">
-            Batidas e Marcações do Mês
-          </h3>
-          <span className="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-3 py-1 rounded-full font-bold">
-            {reportData?.entries?.length || 0} BATIDAS REGISTRADAS
-          </span>
+        <div className="flex border-b border-border-subtle bg-surface-container-lowest overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('entries')}
+            className={`px-5 py-3.5 text-body-sm font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors ${
+              activeTab === 'entries'
+                ? 'border-navy-deep text-navy-deep bg-surface-card'
+                : 'border-transparent text-on-surface-variant hover:text-navy-deep'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">timer</span>
+            <span>Batidas de Ponto ({reportData?.entries?.length || 0})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('trips')}
+            className={`px-5 py-3.5 text-body-sm font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors ${
+              activeTab === 'trips'
+                ? 'border-secondary text-secondary bg-surface-card'
+                : 'border-transparent text-on-surface-variant hover:text-navy-deep'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">flight_takeoff</span>
+            <span>Diárias de Viagem ({reportData?.tripParticipations?.length || 0})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('techniques')}
+            className={`px-5 py-3.5 text-body-sm font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors ${
+              activeTab === 'techniques'
+                ? 'border-navy-deep text-navy-deep bg-surface-card'
+                : 'border-transparent text-on-surface-variant hover:text-navy-deep'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">speaker</span>
+            <span>Adicionais de Técnicas ({reportData?.techniqueServices?.length || 0})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`px-5 py-3.5 text-body-sm font-bold flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors ${
+              activeTab === 'summary'
+                ? 'border-navy-deep text-navy-deep bg-surface-card'
+                : 'border-transparent text-on-surface-variant hover:text-navy-deep'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+            <span>Fechamento Consolidado</span>
+          </button>
         </div>
 
         {loading ? (
           <div className="text-center py-16 text-on-surface-variant text-body-sm animate-pulse">
             Carregando dados do espelho de ponto...
           </div>
-        ) : !reportData || reportData.entries?.length === 0 ? (
-          <div className="text-center py-16 text-on-surface-variant text-body-sm">
-            Nenhuma batida de ponto encontrada para o período selecionado.
-          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider">
-                  <th className="px-5 py-3.5">Data</th>
-                  <th className="px-5 py-3.5">Horário</th>
-                  <th className="px-5 py-3.5">Tipo</th>
-                  <th className="px-5 py-3.5">GPS / Local</th>
-                  <th className="px-5 py-3.5">Relato Transcrito</th>
-                  <th className="px-5 py-3.5">Ajuste</th>
-                  <th className="px-5 py-3.5 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-subtle text-body-sm text-navy-deep font-medium">
-                {reportData.entries.map((entry: any) => (
-                  <tr key={entry.id} className="hover:bg-surface-container-low/50 transition-colors">
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      {new Date(entry.timestamp).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-5 py-3.5 font-bold font-mono whitespace-nowrap">
-                      {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded text-label-bold font-label-bold uppercase bg-surface-container text-navy-deep">
-                        {formatEntryType(entry.entry_type)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      {entry.gps_status === 'OK' ? (
-                        <span className="inline-flex items-center gap-1 text-success-vibrant text-xs font-bold">
-                          <span className="material-symbols-outlined text-[14px]">satellite_alt</span>
-                          {entry.is_outside_hq ? 'Fora Sede' : 'Sede OK'}
-                        </span>
-                      ) : (
-                        <span className="text-alert-warning text-xs font-bold">Sem GPS</span>
+          <div className="p-0">
+            {/* ABA 1: BATIDAS DE PONTO */}
+            {activeTab === 'entries' && (
+              <div>
+                {!reportData || reportData.entries?.length === 0 ? (
+                  <div className="text-center py-16 text-on-surface-variant text-body-sm">
+                    Nenhuma batida de ponto registrada no período selecionado.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
+                          <th className="px-5 py-3.5">Data</th>
+                          <th className="px-5 py-3.5">Horário</th>
+                          <th className="px-5 py-3.5">Tipo</th>
+                          <th className="px-5 py-3.5">GPS / Local</th>
+                          <th className="px-5 py-3.5">Relato Transcrito</th>
+                          <th className="px-5 py-3.5">Ajuste</th>
+                          <th className="px-5 py-3.5 text-right">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-subtle text-body-sm text-navy-deep font-medium">
+                        {reportData.entries.map((entry: any) => (
+                          <tr key={entry.id} className="hover:bg-surface-container-low/50 transition-colors">
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              {new Date(entry.timestamp).toLocaleDateString('pt-BR')}
+                            </td>
+                            <td className="px-5 py-3.5 font-bold font-mono whitespace-nowrap">
+                              {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <span className="px-2.5 py-1 rounded text-label-bold font-label-bold uppercase bg-surface-container text-navy-deep text-xs">
+                                {formatEntryType(entry.entry_type)}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              {entry.gps_status === 'OK' ? (
+                                <span className="inline-flex items-center gap-1 text-success-vibrant text-xs font-bold">
+                                  <span className="material-symbols-outlined text-[14px]">satellite_alt</span>
+                                  {entry.is_outside_hq ? 'Fora Sede' : 'Sede OK'}
+                                </span>
+                              ) : (
+                                <span className="text-alert-warning text-xs font-bold">Sem GPS</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5 max-w-xs truncate text-xs text-on-surface-variant italic">
+                              {entry.transcription_text || '---'}
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              {entry.is_adjusted ? (
+                                <span
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-alert-warning/20 text-alert-warning border border-alert-warning/30"
+                                  title={entry.adjustment_reason || 'Ajustado pelo gestor'}
+                                >
+                                  Ajustado
+                                </span>
+                              ) : (
+                                <span className="text-outline text-xs">Original</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                              <button
+                                onClick={() => handleOpenAdjust(entry)}
+                                className="text-xs font-bold text-navy-deep hover:text-slate-serious bg-surface-container px-2.5 py-1.5 rounded-lg transition"
+                              >
+                                Ajustar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ABA 2: DIÁRIAS DE VIAGEM */}
+            {activeTab === 'trips' && (
+              <div>
+                {!reportData?.tripParticipations || reportData.tripParticipations.length === 0 ? (
+                  <div className="text-center py-16 text-on-surface-variant text-body-sm">
+                    Nenhuma viagem vinculada a este colaborador no mês de {reportData?.month}.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
+                          <th className="px-5 py-3.5">Evento / Viagem</th>
+                          <th className="px-5 py-3.5">Cidade de Destino</th>
+                          <th className="px-5 py-3.5">Período</th>
+                          <th className="px-5 py-3.5">Dias Computados</th>
+                          <th className="px-5 py-3.5 text-right">Diária Total (R$)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-subtle text-body-sm text-navy-deep font-medium">
+                        {reportData.tripParticipations.map((tp: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
+                            <td className="px-5 py-3.5 font-bold">{tp.title}</td>
+                            <td className="px-5 py-3.5 text-secondary font-semibold flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[16px]">location_on</span>
+                              {tp.destinationCity}
+                            </td>
+                            <td className="px-5 py-3.5 text-xs text-on-surface-variant">
+                              {formatDateBR(tp.startDate)} a {formatDateBR(tp.endDate)}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="px-2.5 py-1 bg-surface-container rounded-full text-xs font-bold">
+                                {tp.daysCount} dia(s)
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 text-right font-bold text-secondary text-body-md">
+                              {(Number(tp.totalAllowanceCentavos || 0) / 100).toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ABA 3: ADICIONAIS DE TÉCNICAS */}
+            {activeTab === 'techniques' && (
+              <div>
+                {!reportData?.techniqueServices || reportData.techniqueServices.length === 0 ? (
+                  <div className="text-center py-16 text-on-surface-variant text-body-sm">
+                    Nenhum serviço de técnica registrado por este colaborador no mês de {reportData?.month}.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
+                          <th className="px-5 py-3.5">Data do Serviço</th>
+                          <th className="px-5 py-3.5">Nome do Evento</th>
+                          <th className="px-5 py-3.5">Qtd Técnicas</th>
+                          <th className="px-5 py-3.5">Observações</th>
+                          <th className="px-5 py-3.5 text-right">Valor Total (R$)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-subtle text-body-sm text-navy-deep font-medium">
+                        {reportData.techniqueServices.map((tec: any) => (
+                          <tr key={tec.id} className="hover:bg-surface-container-low/50 transition-colors">
+                            <td className="px-5 py-3.5 font-semibold">{formatDateBR(tec.serviceDate)}</td>
+                            <td className="px-5 py-3.5 font-bold text-navy-deep">{tec.eventName}</td>
+                            <td className="px-5 py-3.5">
+                              <span className="px-2.5 py-1 bg-surface-container rounded-full text-xs font-bold">
+                                {tec.techniquesCount} técnica(s)
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 text-xs text-on-surface-variant italic">
+                              {tec.notes || '---'}
+                            </td>
+                            <td className="px-5 py-3.5 text-right font-bold text-navy-deep text-body-md">
+                              {(Number(tec.totalAmountCentavos || 0) / 100).toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ABA 4: FECHAMENTO CONSOLIDADO */}
+            {activeTab === 'summary' && reportData?.summary && (
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Resumo de Jornada */}
+                  <div className="bg-surface-container-low p-5 rounded-xl border border-border-subtle space-y-3">
+                    <h4 className="font-bold text-navy-deep text-body-md flex items-center gap-2 border-b border-border-subtle pb-2">
+                      <span className="material-symbols-outlined text-[20px]">schedule</span>
+                      <span>Totalizadores de Jornada (CLT)</span>
+                    </h4>
+                    <div className="space-y-2 text-body-sm">
+                      <div className="flex justify-between">
+                        <span className="text-on-surface-variant">Horas Normais Trabalhadas:</span>
+                        <span className="font-bold text-navy-deep">{reportData.summary.regularHours}h</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-on-surface-variant">Horas Extras (&gt;8h/dia):</span>
+                        <span className="font-bold text-alert-warning">{reportData.summary.overtimeHours}h</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-on-surface-variant">Horas em Domingos / Feriados:</span>
+                        <span className="font-bold text-navy-deep">{reportData.summary.sundayHolidayHours}h ({reportData.summary.sundayDaysCount} dias)</span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-border-subtle">
+                        <span className="font-bold text-navy-deep">Total Horas Registradas:</span>
+                        <span className="font-bold text-navy-deep text-body-md">{reportData.summary.totalWorkedHours}h</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resumo de Adicionais Financeiros */}
+                  <div className="bg-surface-container-low p-5 rounded-xl border border-border-subtle space-y-3">
+                    <h4 className="font-bold text-navy-deep text-body-md flex items-center gap-2 border-b border-border-subtle pb-2">
+                      <span className="material-symbols-outlined text-[20px]">payments</span>
+                      <span>Adicionais e Diárias a Pagar</span>
+                    </h4>
+                    <div className="space-y-2 text-body-sm">
+                      <div className="flex justify-between">
+                        <span className="text-on-surface-variant">Diárias de Viagem ({reportData.summary.travelDaysCount} dias):</span>
+                        <span className="font-bold text-secondary">R$ {reportData.summary.totalTravelAllowancesReais}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-on-surface-variant">Adicionais de Técnicas ({reportData.summary.techniquesCount} un):</span>
+                        <span className="font-bold text-navy-deep">R$ {reportData.summary.totalTechniquesAmountReais}</span>
+                      </div>
+                      {Number(reportData.summary.sundayBonusReais) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Bônus de Domingo ({sundayRule === 'FIXED_DAILY' ? 'Diária Fixa' : 'H.E. 100%'}):</span>
+                          <span className="font-bold text-navy-deep">R$ {reportData.summary.sundayBonusReais}</span>
+                        </div>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 max-w-xs truncate text-xs text-on-surface-variant italic">
-                      {entry.transcription_text || '---'}
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      {entry.is_adjusted ? (
-                        <span
-                          className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-alert-warning/20 text-alert-warning border border-alert-warning/30"
-                          title={entry.adjustment_reason || 'Ajustado pelo gestor'}
-                        >
-                          Ajustado
-                        </span>
-                      ) : (
-                        <span className="text-outline text-xs">Original</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleOpenAdjust(entry)}
-                        className="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high rounded text-xs font-bold text-navy-deep transition shadow-sm active:translate-y-px"
-                        title="Ajustar horário manualmente (INV-04)"
-                      >
-                        Ajustar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div className="flex justify-between pt-2 border-t border-border-subtle">
+                        <span className="font-bold text-navy-deep">Total Bruto de Bônus / Diárias:</span>
+                        <span className="font-bold text-secondary text-headline-sm">R$ {reportData.summary.grandTotalBonusReais}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* MODAL DE AJUSTE MANUAL DE PONTO AUDITADO (INV-04) */}
+      {/* Modal de Ajuste Manual Auditado */}
       {adjustingEntry && (
         <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-surface-card w-full max-w-md rounded-xl p-6 border border-border-subtle shadow-2xl space-y-4">
-            <div className="flex justify-between items-start pb-2 border-b border-border-subtle">
-              <div>
-                <h3 className="text-headline-md font-bold text-navy-deep">Ajuste Manual de Ponto</h3>
-                <p className="text-body-sm text-on-surface-variant">
-                  {formatEntryType(adjustingEntry.entry_type)} em{' '}
-                  {new Date(adjustingEntry.timestamp).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
+          <div className="bg-surface-card w-full max-w-lg rounded-xl p-6 border border-border-subtle shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+              <h3 className="text-headline-md font-bold text-navy-deep">Ajuste Manual Auditado</h3>
               <button onClick={() => setAdjustingEntry(null)} className="text-on-surface-variant hover:text-navy-deep">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleSaveAdjustment} className="space-y-3">
+            <form onSubmit={handleSaveAdjustment} className="space-y-4">
+              <div className="p-3 bg-surface-container-low rounded-lg text-xs space-y-1 text-on-surface-variant">
+                <p>
+                  <strong>Tipo de Batida:</strong> {formatEntryType(adjustingEntry.entry_type)}
+                </p>
+                <p>
+                  <strong>Horário Original:</strong> {new Date(adjustingEntry.timestamp).toLocaleString('pt-BR')}
+                </p>
+              </div>
+
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Novo Horário / Data *
-                </label>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">Novo Horário *</label>
                 <input
                   type="datetime-local"
                   value={newTimestamp}
@@ -495,26 +834,18 @@ export default function AdminPontoPage() {
 
               <div>
                 <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Motivo / Justificativa do Ajuste * (INV-04)
+                  Justificativa Obrigatória (Auditoria INV-04) *
                 </label>
                 <textarea
                   value={adjustmentReason}
                   onChange={(e) => setAdjustmentReason(e.target.value)}
-                  rows={3}
-                  placeholder="Ex: Esquecimento de batida na chegada ao evento..."
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  placeholder="Ex: Esqueceu de registrar saída ao término do evento no Buffet França..."
+                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none h-24 resize-none"
                   required
                 />
               </div>
 
-              <div className="p-3 bg-surface-container-low rounded-lg text-xs text-on-surface-variant">
-                <p className="font-bold text-navy-deep">Aviso de Auditoria Trabalhista:</p>
-                <p>
-                  Esta alteração será registrada com seu usuário de gestor e marcada como batida ajustada no espelho de ponto oficial.
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-border-subtle flex gap-3">
+              <div className="pt-2 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setAdjustingEntry(null)}
@@ -527,7 +858,7 @@ export default function AdminPontoPage() {
                   disabled={savingAdjustment || !adjustmentReason.trim()}
                   className="flex-1 py-2.5 bg-navy-deep text-white font-bold rounded-lg shadow-soft active:translate-y-px disabled:opacity-50"
                 >
-                  {savingAdjustment ? 'Salvando...' : 'Salvar Ajuste'}
+                  {savingAdjustment ? 'Salvando...' : 'Salvar Ajuste Auditado'}
                 </button>
               </div>
             </form>
