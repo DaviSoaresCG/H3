@@ -2,19 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { parseCoordinatesInput, validateCoordinates } from '@/lib/geofence';
-import { GeocodeResult } from '@/lib/geocoding';
 
 export default function AdminEmpresaPage() {
   const [hqName, setHqName] = useState('Sede Principal EventPoint');
-  const [latStr, setLatStr] = useState('-23.550520');
-  const [lonStr, setLonStr] = useState('-46.633308');
+  const [coordinatesInput, setCoordinatesInput] = useState('-23.550520, -46.633308');
   const [hqRadiusMeters, setHqRadiusMeters] = useState(500);
-  const [smartPasteInput, setSmartPasteInput] = useState('');
-
-  // Busca por endereço / CEP
-  const [addressQuery, setAddressQuery] = useState('');
-  const [searchingAddress, setSearchingAddress] = useState(false);
-  const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,8 +22,9 @@ export default function AdminEmpresaPage() {
       const data = await res.json();
       if (data.success && data.settings) {
         setHqName(data.settings.hqName || 'Sede Principal');
-        setLatStr(String(data.settings.hqLatitude ?? -23.55052));
-        setLonStr(String(data.settings.hqLongitude ?? -46.633308));
+        const lat = data.settings.hqLatitude ?? -23.55052;
+        const lon = data.settings.hqLongitude ?? -46.633308;
+        setCoordinatesInput(`${lat}, ${lon}`);
         setHqRadiusMeters(data.settings.hqRadiusMeters || 500);
       }
     } catch (e) {
@@ -45,59 +38,10 @@ export default function AdminEmpresaPage() {
     fetchSettings();
   }, [fetchSettings]);
 
-  // Parse inteligente quando o usuário colar coordenadas ou link do Maps
-  const handleSmartPaste = (raw: string) => {
-    setSmartPasteInput(raw);
-    if (!raw.trim()) return;
-
-    const parsed = parseCoordinatesInput(raw);
-    if (parsed) {
-      setLatStr(parsed.latitude.toFixed(6));
-      setLonStr(parsed.longitude.toFixed(6));
-      setFeedback({
-        type: 'success',
-        text: `Coordenadas identificadas com sucesso: Lat ${parsed.latitude.toFixed(6)}, Lon ${parsed.longitude.toFixed(6)}`,
-      });
-      setTimeout(() => setFeedback(null), 4000);
-    }
-  };
-
-  // Busca de coordenadas por endereço / CEP
-  const handleSearchAddress = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addressQuery.trim() || addressQuery.trim().length < 3) return;
-
-    setSearchingAddress(true);
-    setAddressResults([]);
-    try {
-      const res = await fetch(`/api/admin/empresa/geocode?q=${encodeURIComponent(addressQuery.trim())}`);
-      const data = await res.json();
-      if (data.success && data.results?.length > 0) {
-        setAddressResults(data.results);
-      } else {
-        setFeedback({
-          type: 'warning',
-          text: 'Nenhum endereço encontrado para este termo. Tente incluir rua, número, cidade ou CEP.',
-        });
-        setTimeout(() => setFeedback(null), 5000);
-      }
-    } catch {
-      setFeedback({ type: 'error', text: 'Falha ao buscar endereço. Verifique sua conexão.' });
-    } finally {
-      setSearchingAddress(false);
-    }
-  };
-
-  const handleSelectAddress = (item: GeocodeResult) => {
-    setLatStr(item.latitude.toFixed(6));
-    setLonStr(item.longitude.toFixed(6));
-    setAddressResults([]);
-    setAddressQuery('');
-    setFeedback({
-      type: 'success',
-      text: `Endereço selecionado! Coordenadas ajustadas para Lat ${item.latitude.toFixed(6)}, Lon ${item.longitude.toFixed(6)}`,
-    });
-    setTimeout(() => setFeedback(null), 4000);
+  // Extrai latitude e longitude em tempo real do input
+  const parsedCoords = parseCoordinatesInput(coordinatesInput) || {
+    latitude: -23.55052,
+    longitude: -46.633308,
   };
 
   const handleGetCurrentLocation = () => {
@@ -116,20 +60,18 @@ export default function AdminEmpresaPage() {
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lon = Number(pos.coords.longitude.toFixed(6));
 
-        setLatStr(String(lat));
-        setLonStr(String(lon));
+        setCoordinatesInput(`${lat}, ${lon}`);
         setLocating(false);
 
-        // Se a acurácia for maior que 500m (comum em navegadores desktop triangulados por IP)
         if (accuracy > 500) {
           setFeedback({
             type: 'warning',
-            text: `Localização obtida com margem de ±${(accuracy / 1000).toFixed(1)}km (estimativa de rede/IP). Para máxima precisão, use a busca por endereço ou cole o link do Google Maps da sua sede.`,
+            text: `Localização obtida com margem de ±${(accuracy / 1000).toFixed(1)}km (estimativa de rede/IP). Para máxima precisão, copie e cole as coordenadas exatas do Google Maps.`,
           });
         } else {
           setFeedback({
             type: 'success',
-            text: `GPS de alta precisão capturado com sucesso (precisão de ±${accuracy}m)!`,
+            text: `GPS capturado com sucesso (precisão de ±${accuracy}m)!`,
           });
           setTimeout(() => setFeedback(null), 5000);
         }
@@ -153,10 +95,16 @@ export default function AdminEmpresaPage() {
       return;
     }
 
-    const cleanLat = parseFloat(latStr.trim().replace(',', '.'));
-    const cleanLon = parseFloat(lonStr.trim().replace(',', '.'));
+    const parsed = parseCoordinatesInput(coordinatesInput);
+    if (!parsed) {
+      setFeedback({
+        type: 'error',
+        text: 'Formato de coordenadas não reconhecido. Exemplo aceito: -10.164483, -48.315105 ou link do Google Maps.',
+      });
+      return;
+    }
 
-    const validation = validateCoordinates(cleanLat, cleanLon);
+    const validation = validateCoordinates(parsed.latitude, parsed.longitude);
     if (!validation.valid) {
       setFeedback({ type: 'error', text: validation.error || 'Coordenadas inválidas.' });
       return;
@@ -169,9 +117,10 @@ export default function AdminEmpresaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           hqName: hqName.trim(),
-          hqLatitude: cleanLat,
-          hqLongitude: cleanLon,
+          hqLatitude: parsed.latitude,
+          hqLongitude: parsed.longitude,
           hqRadiusMeters,
+          coordinates: coordinatesInput.trim(),
         }),
       });
 
@@ -190,10 +139,10 @@ export default function AdminEmpresaPage() {
     }
   };
 
-  const currentLatNum = parseFloat(latStr.trim().replace(',', '.')) || -23.55052;
-  const currentLonNum = parseFloat(lonStr.trim().replace(',', '.')) || -46.633308;
-  const mapsUrl = `https://www.google.com/maps?q=${currentLatNum},${currentLonNum}`;
-  const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${currentLonNum - 0.008}%2C${currentLatNum - 0.006}%2C${currentLonNum + 0.008}%2C${currentLatNum + 0.006}&layer=mapnik&marker=${currentLatNum}%2C${currentLonNum}`;
+  const latNum = parsedCoords.latitude;
+  const lonNum = parsedCoords.longitude;
+  const mapsUrl = `https://www.google.com/maps?q=${latNum},${lonNum}`;
+  const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lonNum - 0.008}%2C${latNum - 0.006}%2C${lonNum + 0.008}%2C${latNum + 0.006}&layer=mapnik&marker=${latNum}%2C${lonNum}`;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -249,71 +198,6 @@ export default function AdminEmpresaPage() {
               </h2>
             </div>
 
-            {/* Opção 1: Busca por Endereço / CEP */}
-            <div className="bg-surface-container-low p-4 rounded-xl border border-border-subtle space-y-2">
-              <label className="block text-xs font-bold text-navy-deep flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-secondary text-[18px]">search</span>
-                <span>Buscar Coordenadas por Endereço ou CEP</span>
-              </label>
-              <form onSubmit={handleSearchAddress} className="flex gap-2">
-                <input
-                  type="text"
-                  value={addressQuery}
-                  onChange={(e) => setAddressQuery(e.target.value)}
-                  placeholder="Ex: Av. Paulista, 1000, São Paulo ou 01310-100"
-                  className="flex-1 p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-xs text-navy-deep focus:border-navy-deep outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={searchingAddress || !addressQuery.trim()}
-                  className="px-4 py-2.5 bg-secondary text-white font-bold rounded-lg text-xs hover:brightness-110 active:translate-y-px transition shadow-sm disabled:opacity-50 flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-[16px]">
-                    {searchingAddress ? 'sync' : 'search'}
-                  </span>
-                  <span>{searchingAddress ? 'Buscando...' : 'Buscar'}</span>
-                </button>
-              </form>
-
-              {/* Sugestões de Endereço */}
-              {addressResults.length > 0 && (
-                <div className="mt-2 space-y-1 bg-surface-card p-2 rounded-lg border border-border-subtle shadow-sm max-h-48 overflow-y-auto">
-                  <span className="text-[10px] uppercase font-bold text-on-surface-variant px-1">
-                    Selecione o local correto:
-                  </span>
-                  {addressResults.map((item, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectAddress(item)}
-                      className="w-full text-left p-2 hover:bg-secondary-container/40 rounded text-xs text-navy-deep transition flex items-center justify-between gap-2 border-b border-border-subtle last:border-0"
-                    >
-                      <span className="truncate flex-1 font-medium">{item.displayName}</span>
-                      <span className="text-[10px] font-mono text-secondary shrink-0 font-bold">
-                        Selecionar &rarr;
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Opção 2: Smart Paste Box */}
-            <div className="bg-surface-container-low p-3.5 rounded-xl border border-border-subtle space-y-1.5">
-              <label className="block text-xs font-bold text-navy-deep flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-secondary text-[16px]">content_paste</span>
-                <span>Ou Cole as Coordenadas / Link do Google Maps</span>
-              </label>
-              <input
-                type="text"
-                value={smartPasteInput}
-                onChange={(e) => handleSmartPaste(e.target.value)}
-                placeholder="Ex: -23.550520, -46.633308 ou link do Google Maps"
-                className="w-full p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-xs text-navy-deep font-mono focus:border-navy-deep outline-none"
-              />
-            </div>
-
-            {/* Formulário Manual */}
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-body-sm font-semibold text-navy-deep mb-1">
@@ -329,38 +213,26 @@ export default function AdminEmpresaPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                    Latitude (GPS) *
-                  </label>
-                  <input
-                    type="text"
-                    value={latStr}
-                    onChange={(e) => setLatStr(e.target.value)}
-                    placeholder="-23.550520"
-                    className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md font-mono text-on-surface focus:border-navy-deep outline-none"
-                    required
-                  />
-                  <span className="text-[10px] text-on-surface-variant mt-0.5 block">Ex: -23.550520</span>
-                </div>
-
-                <div>
-                  <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                    Longitude (GPS) *
-                  </label>
-                  <input
-                    type="text"
-                    value={lonStr}
-                    onChange={(e) => setLonStr(e.target.value)}
-                    placeholder="-46.633308"
-                    className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md font-mono text-on-surface focus:border-navy-deep outline-none"
-                    required
-                  />
-                  <span className="text-[10px] text-on-surface-variant mt-0.5 block">Ex: -46.633308</span>
-                </div>
+              {/* Campo Único: Cole as Coordenadas */}
+              <div>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-secondary text-[18px]">location_on</span>
+                  <span>Cole as Coordenadas ou Link do Google Maps *</span>
+                </label>
+                <input
+                  type="text"
+                  value={coordinatesInput}
+                  onChange={(e) => setCoordinatesInput(e.target.value)}
+                  placeholder="Ex: -10.164483, -48.315105 ou link do Google Maps"
+                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md font-mono text-navy-deep focus:border-navy-deep outline-none"
+                  required
+                />
+                <p className="text-[11px] text-on-surface-variant mt-1">
+                  Aceita coordenadas diretas (ex: <code className="bg-surface-container px-1 rounded">-10.164483, -48.315105</code>) ou link copiado do Google Maps.
+                </p>
               </div>
 
+              {/* Slider de Raio */}
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-body-sm font-semibold text-navy-deep">
@@ -414,7 +286,7 @@ export default function AdminEmpresaPage() {
             <div className="bg-surface-card rounded-xl border border-border-subtle p-5 shadow-soft space-y-3">
               <h3 className="font-headline-md text-headline-md font-bold text-navy-deep flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">pin_drop</span>
-                <span>Visualização no Mapa Interativo</span>
+                <span>Visualização no Mapa</span>
               </h3>
 
               {/* Mapa Embutido Interativo */}
@@ -429,13 +301,9 @@ export default function AdminEmpresaPage() {
                 />
               </div>
 
-              <p className="text-body-sm text-on-surface-variant">
-                Qualquer batida de ponto registrada fora do raio de <strong>{hqRadiusMeters}m</strong> dessas coordenadas sem uma viagem vinculada gerará um alerta de <strong>"Fora da Sede"</strong> no dashboard administrativo.
-              </p>
-
               <div className="p-3 bg-surface-container-low rounded-lg text-xs space-y-1 font-mono text-navy-deep">
-                <p>LAT: {latStr}</p>
-                <p>LON: {lonStr}</p>
+                <p>LATITUDE: {latNum.toFixed(6)}</p>
+                <p>LONGITUDE: {lonNum.toFixed(6)}</p>
                 <p>RAIO: {hqRadiusMeters} metros</p>
               </div>
 
@@ -453,10 +321,10 @@ export default function AdminEmpresaPage() {
             <div className="bg-secondary-container/30 border border-secondary/30 rounded-xl p-4 text-xs text-on-secondary-container space-y-1.5">
               <p className="font-bold flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">info</span>
-                <span>Dica de Localização</span>
+                <span>Dica de Uso</span>
               </p>
               <p>
-                Ao cadastrar no computador de escritório, o navegador pode estimar o local pelo provedor de internet (IP). Você pode usar o campo de <strong>Busca por Endereço/CEP</strong> acima ou copiar as coordenadas exatas do Google Maps.
+                Abra o Google Maps, clique com o botão direito sobre o local exato da sua sede ou galpão, clique no primeiro item para copiar as coordenadas e cole diretamente no campo acima.
               </p>
             </div>
           </div>
