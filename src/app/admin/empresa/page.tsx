@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { parseCoordinatesInput, validateCoordinates } from '@/lib/geofence';
+import { GeocodeResult } from '@/lib/geocoding';
 
 export default function AdminEmpresaPage() {
   const [hqName, setHqName] = useState('Sede Principal EventPoint');
@@ -9,6 +10,11 @@ export default function AdminEmpresaPage() {
   const [lonStr, setLonStr] = useState('-46.633308');
   const [hqRadiusMeters, setHqRadiusMeters] = useState(500);
   const [smartPasteInput, setSmartPasteInput] = useState('');
+
+  // Busca por endereço / CEP
+  const [addressQuery, setAddressQuery] = useState('');
+  const [searchingAddress, setSearchingAddress] = useState(false);
+  const [addressResults, setAddressResults] = useState<GeocodeResult[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,6 +62,44 @@ export default function AdminEmpresaPage() {
     }
   };
 
+  // Busca de coordenadas por endereço / CEP
+  const handleSearchAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addressQuery.trim() || addressQuery.trim().length < 3) return;
+
+    setSearchingAddress(true);
+    setAddressResults([]);
+    try {
+      const res = await fetch(`/api/admin/empresa/geocode?q=${encodeURIComponent(addressQuery.trim())}`);
+      const data = await res.json();
+      if (data.success && data.results?.length > 0) {
+        setAddressResults(data.results);
+      } else {
+        setFeedback({
+          type: 'warning',
+          text: 'Nenhum endereço encontrado para este termo. Tente incluir rua, número, cidade ou CEP.',
+        });
+        setTimeout(() => setFeedback(null), 5000);
+      }
+    } catch {
+      setFeedback({ type: 'error', text: 'Falha ao buscar endereço. Verifique sua conexão.' });
+    } finally {
+      setSearchingAddress(false);
+    }
+  };
+
+  const handleSelectAddress = (item: GeocodeResult) => {
+    setLatStr(item.latitude.toFixed(6));
+    setLonStr(item.longitude.toFixed(6));
+    setAddressResults([]);
+    setAddressQuery('');
+    setFeedback({
+      type: 'success',
+      text: `Endereço selecionado! Coordenadas ajustadas para Lat ${item.latitude.toFixed(6)}, Lon ${item.longitude.toFixed(6)}`,
+    });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       setFeedback({
@@ -80,7 +124,7 @@ export default function AdminEmpresaPage() {
         if (accuracy > 500) {
           setFeedback({
             type: 'warning',
-            text: `Localização obtida com margem de ±${(accuracy / 1000).toFixed(1)}km (estimativa de rede/IP). Para máxima precisão, digite ou cole o link do Google Maps da sua sede.`,
+            text: `Localização obtida com margem de ±${(accuracy / 1000).toFixed(1)}km (estimativa de rede/IP). Para máxima precisão, use a busca por endereço ou cole o link do Google Maps da sua sede.`,
           });
         } else {
           setFeedback({
@@ -146,12 +190,13 @@ export default function AdminEmpresaPage() {
     }
   };
 
-  const currentLatNum = parseFloat(latStr.trim().replace(',', '.')) || 0;
-  const currentLonNum = parseFloat(lonStr.trim().replace(',', '.')) || 0;
+  const currentLatNum = parseFloat(latStr.trim().replace(',', '.')) || -23.55052;
+  const currentLonNum = parseFloat(lonStr.trim().replace(',', '.')) || -46.633308;
   const mapsUrl = `https://www.google.com/maps?q=${currentLatNum},${currentLonNum}`;
+  const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${currentLonNum - 0.008}%2C${currentLatNum - 0.006}%2C${currentLonNum + 0.008}%2C${currentLatNum + 0.006}&layer=mapnik&marker=${currentLatNum}%2C${currentLonNum}`;
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       {/* Toast Feedback */}
       {feedback && (
         <div
@@ -194,9 +239,9 @@ export default function AdminEmpresaPage() {
           Carregando configurações da empresa...
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Formulário Principal (7 cols) */}
-          <div className="md:col-span-7 bg-surface-card rounded-xl border border-border-subtle p-6 shadow-soft space-y-5">
+          <div className="lg:col-span-7 bg-surface-card rounded-xl border border-border-subtle p-6 shadow-soft space-y-5">
             <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
               <span className="material-symbols-outlined text-navy-deep text-[22px]">apartment</span>
               <h2 className="font-headline-md text-headline-md font-bold text-navy-deep">
@@ -204,11 +249,60 @@ export default function AdminEmpresaPage() {
               </h2>
             </div>
 
-            {/* Smart Paste Box */}
+            {/* Opção 1: Busca por Endereço / CEP */}
+            <div className="bg-surface-container-low p-4 rounded-xl border border-border-subtle space-y-2">
+              <label className="block text-xs font-bold text-navy-deep flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-secondary text-[18px]">search</span>
+                <span>Buscar Coordenadas por Endereço ou CEP</span>
+              </label>
+              <form onSubmit={handleSearchAddress} className="flex gap-2">
+                <input
+                  type="text"
+                  value={addressQuery}
+                  onChange={(e) => setAddressQuery(e.target.value)}
+                  placeholder="Ex: Av. Paulista, 1000, São Paulo ou 01310-100"
+                  className="flex-1 p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-xs text-navy-deep focus:border-navy-deep outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={searchingAddress || !addressQuery.trim()}
+                  className="px-4 py-2.5 bg-secondary text-white font-bold rounded-lg text-xs hover:brightness-110 active:translate-y-px transition shadow-sm disabled:opacity-50 flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {searchingAddress ? 'sync' : 'search'}
+                  </span>
+                  <span>{searchingAddress ? 'Buscando...' : 'Buscar'}</span>
+                </button>
+              </form>
+
+              {/* Sugestões de Endereço */}
+              {addressResults.length > 0 && (
+                <div className="mt-2 space-y-1 bg-surface-card p-2 rounded-lg border border-border-subtle shadow-sm max-h-48 overflow-y-auto">
+                  <span className="text-[10px] uppercase font-bold text-on-surface-variant px-1">
+                    Selecione o local correto:
+                  </span>
+                  {addressResults.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectAddress(item)}
+                      className="w-full text-left p-2 hover:bg-secondary-container/40 rounded text-xs text-navy-deep transition flex items-center justify-between gap-2 border-b border-border-subtle last:border-0"
+                    >
+                      <span className="truncate flex-1 font-medium">{item.displayName}</span>
+                      <span className="text-[10px] font-mono text-secondary shrink-0 font-bold">
+                        Selecionar &rarr;
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Opção 2: Smart Paste Box */}
             <div className="bg-surface-container-low p-3.5 rounded-xl border border-border-subtle space-y-1.5">
               <label className="block text-xs font-bold text-navy-deep flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-secondary text-[16px]">content_paste</span>
-                <span>Colar Coordenadas ou Link do Google Maps (Opcional)</span>
+                <span>Ou Cole as Coordenadas / Link do Google Maps</span>
               </label>
               <input
                 type="text"
@@ -217,11 +311,9 @@ export default function AdminEmpresaPage() {
                 placeholder="Ex: -23.550520, -46.633308 ou link do Google Maps"
                 className="w-full p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-xs text-navy-deep font-mono focus:border-navy-deep outline-none"
               />
-              <p className="text-[11px] text-on-surface-variant">
-                Cole as coordenadas copiadas do Google Maps para preenchimento automático instantâneo.
-              </p>
             </div>
 
+            {/* Formulário Manual */}
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-body-sm font-semibold text-navy-deep mb-1">
@@ -317,13 +409,25 @@ export default function AdminEmpresaPage() {
             </form>
           </div>
 
-          {/* Card Informativo & Mapa (5 cols) */}
-          <div className="md:col-span-5 space-y-4">
+          {/* Card Informativo & Mapa Interativo (5 cols) */}
+          <div className="lg:col-span-5 space-y-4">
             <div className="bg-surface-card rounded-xl border border-border-subtle p-5 shadow-soft space-y-3">
               <h3 className="font-headline-md text-headline-md font-bold text-navy-deep flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">pin_drop</span>
-                <span>Visualização no Mapa</span>
+                <span>Visualização no Mapa Interativo</span>
               </h3>
+
+              {/* Mapa Embutido Interativo */}
+              <div className="w-full h-56 rounded-lg overflow-hidden border border-border-subtle shadow-inner relative bg-surface-container-low">
+                <iframe
+                  title="Mapa da Sede"
+                  width="100%"
+                  height="100%"
+                  src={osmEmbedUrl}
+                  className="border-0"
+                  loading="lazy"
+                />
+              </div>
 
               <p className="text-body-sm text-on-surface-variant">
                 Qualquer batida de ponto registrada fora do raio de <strong>{hqRadiusMeters}m</strong> dessas coordenadas sem uma viagem vinculada gerará um alerta de <strong>"Fora da Sede"</strong> no dashboard administrativo.
@@ -339,10 +443,10 @@ export default function AdminEmpresaPage() {
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-surface-container text-navy-deep hover:bg-surface-container-high font-bold rounded-lg text-xs transition shadow-sm"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-navy-deep text-white hover:bg-slate-serious font-bold rounded-lg text-xs transition shadow-sm"
               >
                 <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                <span>Conferir no Google Maps</span>
+                <span>Abrir no Google Maps</span>
               </a>
             </div>
 
@@ -352,7 +456,7 @@ export default function AdminEmpresaPage() {
                 <span>Dica de Localização</span>
               </p>
               <p>
-                Ao cadastrar no computador de escritório, o navegador pode estimar o local pelo provedor de internet (IP). Você pode abrir o Google Maps, clicar com o botão direito no local da sua sede, copiar as coordenadas e colar no campo inteligente acima.
+                Ao cadastrar no computador de escritório, o navegador pode estimar o local pelo provedor de internet (IP). Você pode usar o campo de <strong>Busca por Endereço/CEP</strong> acima ou copiar as coordenadas exatas do Google Maps.
               </p>
             </div>
           </div>
