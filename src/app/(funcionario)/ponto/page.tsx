@@ -78,6 +78,13 @@ export default function PontoPage() {
     }
   }, []);
 
+  const [monthlyBonus, setMonthlyBonus] = useState<{
+    techniquesCentavos: number;
+    techniquesCount: number;
+    travelCentavos: number;
+    travelDays: number;
+  } | null>(null);
+
   // 3. Carrega usuário e últimos registros de ponto
   const fetchTimeEntries = useCallback(async () => {
     try {
@@ -95,6 +102,9 @@ export default function PontoPage() {
         const lastEntry = dataPonto.timeEntries[0];
         const calculatedStatus = determineEmployeeStatus(lastEntry?.entry_type);
         setCurrentStatus(calculatedStatus);
+        if (dataPonto.monthlyBonus) {
+          setMonthlyBonus(dataPonto.monthlyBonus);
+        }
       }
     } catch (e) {
       console.error('Erro ao buscar dados de ponto:', e);
@@ -473,6 +483,38 @@ export default function PontoPage() {
           </div>
           <span className="text-body-sm font-body-sm text-outline">Hoje</span>
         </div>
+
+        {/* Card de Técnicas & Adicionais Acumulados no Mês */}
+        {monthlyBonus && (monthlyBonus.techniquesCentavos > 0 || monthlyBonus.travelCentavos > 0) && (
+          <div className="w-full bg-surface-card border border-border-subtle rounded-xl p-4 shadow-sm space-y-2 border-l-4 border-l-secondary">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                Seus Adicionais no Mês
+              </span>
+              <a href="/tecnicas" className="text-xs font-bold text-secondary hover:underline flex items-center gap-0.5">
+                <span>Ver Fichas</span>
+                <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+              </a>
+            </div>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-2xl font-black text-navy-deep">
+                  {((monthlyBonus.techniquesCentavos + monthlyBonus.travelCentavos) / 100).toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  })}
+                </p>
+                <p className="text-xs text-on-surface-variant font-medium mt-0.5">
+                  {monthlyBonus.techniquesCount} técnica(s) ({(monthlyBonus.techniquesCentavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+                  {monthlyBonus.travelDays > 0 && ` + ${monthlyBonus.travelDays} dia(s) viagem`}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-secondary-container text-on-secondary-container flex items-center justify-center">
+                <span className="material-symbols-outlined text-[24px]">payments</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Audio Report Action Button (INV-01) */}
         {currentStatus === 'EM_EXPEDIENTE' && (

@@ -98,10 +98,15 @@ export function calculateTimesheetSummary(
   let sundayHolidayHoursAccum = 0;
   const sundayDatesWorked = new Set<string>();
 
-  // Agrupa batidas por data (YYYY-MM-DD)
+  // Agrupa batidas por data local (YYYY-MM-DD)
   const entriesByDay: Record<string, StoredTimeEntry[]> = {};
   for (const entry of entries) {
-    const dayKey = entry.timestamp.substring(0, 10);
+    if (!entry.timestamp) continue;
+    const d = new Date(entry.timestamp);
+    const dayKey = isNaN(d.getTime())
+      ? entry.timestamp.substring(0, 10)
+      : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     if (!entriesByDay[dayKey]) {
       entriesByDay[dayKey] = [];
     }
@@ -113,28 +118,46 @@ export function calculateTimesheetSummary(
       (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
 
-    let dayIn: Date | null = null;
-    let dayMealStart: Date | null = null;
-    let mealMs = 0;
+    let currentIn: Date | null = null;
+    let currentMealStart: Date | null = null;
+    let dayMealMs = 0;
     let dayWorkMs = 0;
 
     for (const e of sorted) {
       const t = new Date(e.timestamp);
-      if (e.entry_type === 'CLOCK_IN' && !dayIn) {
-        dayIn = t;
-        mealMs = 0;
+      if (e.entry_type === 'CLOCK_IN') {
+        currentIn = t;
+        currentMealStart = null;
       } else if (e.entry_type === 'MEAL_START') {
-        dayMealStart = t;
-      } else if (e.entry_type === 'MEAL_END' && dayMealStart) {
-        mealMs += t.getTime() - dayMealStart.getTime();
-        dayMealStart = null;
-      } else if (e.entry_type === 'CLOCK_OUT' && dayIn) {
-        const span = t.getTime() - dayIn.getTime() - mealMs;
+        currentMealStart = t;
+      } else if (e.entry_type === 'MEAL_END') {
+        if (currentMealStart) {
+          dayMealMs += Math.max(0, t.getTime() - currentMealStart.getTime());
+          currentMealStart = null;
+        }
+      } else if (e.entry_type === 'CLOCK_OUT') {
+        if (currentIn) {
+          const span = t.getTime() - currentIn.getTime() - dayMealMs;
+          if (span > 0) {
+            dayWorkMs += span;
+          }
+          currentIn = null;
+          currentMealStart = null;
+          dayMealMs = 0;
+        }
+      }
+    }
+
+    // Se o expediente ainda está aberto (CLOCK_IN sem CLOCK_OUT ainda)
+    if (currentIn) {
+      const now = new Date();
+      // Apenas computa tempo corrido se for a data de hoje
+      const nowDayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (dayKey === nowDayKey) {
+        const span = now.getTime() - currentIn.getTime() - dayMealMs;
         if (span > 0) {
           dayWorkMs += span;
         }
-        dayIn = null;
-        mealMs = 0;
       }
     }
 

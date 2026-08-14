@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { query, queryOne } from '@/lib/db';
+import { validateCoordinates } from '@/lib/geofence';
 
 interface CompanySettingsRow {
   id: string;
@@ -75,16 +76,15 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Nome da sede é obrigatório' }, { status: 400 });
     }
 
-    const lat = Number(hqLatitude);
-    const lon = Number(hqLongitude);
-    const radius = Number(hqRadiusMeters);
+    const cleanLatStr = typeof hqLatitude === 'string' ? hqLatitude.trim().replace(',', '.') : String(hqLatitude);
+    const cleanLonStr = typeof hqLongitude === 'string' ? hqLongitude.trim().replace(',', '.') : String(hqLongitude);
+    const lat = parseFloat(cleanLatStr);
+    const lon = parseFloat(cleanLonStr);
+    const radius = typeof hqRadiusMeters === 'string' ? parseInt(hqRadiusMeters, 10) : Number(hqRadiusMeters);
 
-    if (isNaN(lat) || lat < -90 || lat > 90) {
-      return NextResponse.json({ error: 'Latitude inválida (deve estar entre -90 e 90)' }, { status: 400 });
-    }
-
-    if (isNaN(lon) || lon < -180 || lon > 180) {
-      return NextResponse.json({ error: 'Longitude inválida (deve estar entre -180 e 180)' }, { status: 400 });
+    const coordValidation = validateCoordinates(lat, lon);
+    if (!coordValidation.valid) {
+      return NextResponse.json({ error: coordValidation.error }, { status: 400 });
     }
 
     if (isNaN(radius) || radius < 50 || radius > 50000) {

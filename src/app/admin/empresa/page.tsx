@@ -1,33 +1,32 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-
-interface CompanySettings {
-  id?: string;
-  hqName: string;
-  hqLatitude: number;
-  hqLongitude: number;
-  hqRadiusMeters: number;
-}
+import { parseCoordinatesInput, validateCoordinates } from '@/lib/geofence';
 
 export default function AdminEmpresaPage() {
-  const [settings, setSettings] = useState<CompanySettings>({
-    hqName: 'Sede Principal EventPoint',
-    hqLatitude: -23.55052,
-    hqLongitude: -46.633308,
-    hqRadiusMeters: 500,
-  });
+  const [hqName, setHqName] = useState('Sede Principal EventPoint');
+  const [latStr, setLatStr] = useState('-23.550520');
+  const [lonStr, setLonStr] = useState('-46.633308');
+  const [hqRadiusMeters, setHqRadiusMeters] = useState(500);
+  const [smartPasteInput, setSmartPasteInput] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error' | 'warning';
+    text: string;
+  } | null>(null);
 
   const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/empresa');
       const data = await res.json();
       if (data.success && data.settings) {
-        setSettings(data.settings);
+        setHqName(data.settings.hqName || 'Sede Principal');
+        setLatStr(String(data.settings.hqLatitude ?? -23.55052));
+        setLonStr(String(data.settings.hqLongitude ?? -46.633308));
+        setHqRadiusMeters(data.settings.hqRadiusMeters || 500);
       }
     } catch (e) {
       console.error('Erro ao buscar configurações da sede:', e);
@@ -40,26 +39,56 @@ export default function AdminEmpresaPage() {
     fetchSettings();
   }, [fetchSettings]);
 
+  // Parse inteligente quando o usuário colar coordenadas ou link do Maps
+  const handleSmartPaste = (raw: string) => {
+    setSmartPasteInput(raw);
+    if (!raw.trim()) return;
+
+    const parsed = parseCoordinatesInput(raw);
+    if (parsed) {
+      setLatStr(parsed.latitude.toFixed(6));
+      setLonStr(parsed.longitude.toFixed(6));
+      setFeedback({
+        type: 'success',
+        text: `Coordenadas identificadas com sucesso: Lat ${parsed.latitude.toFixed(6)}, Lon ${parsed.longitude.toFixed(6)}`,
+      });
+      setTimeout(() => setFeedback(null), 4000);
+    }
+  };
+
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocalização não é suportada pelo seu navegador.');
+      setFeedback({
+        type: 'error',
+        text: 'Geolocalização não é suportada pelo seu navegador.',
+      });
       return;
     }
 
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setSettings((prev) => ({
-          ...prev,
-          hqLatitude: Number(pos.coords.latitude.toFixed(8)),
-          hqLongitude: Number(pos.coords.longitude.toFixed(8)),
-        }));
+        const accuracy = Math.round(pos.coords.accuracy);
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lon = Number(pos.coords.longitude.toFixed(6));
+
+        setLatStr(String(lat));
+        setLonStr(String(lon));
         setLocating(false);
-        setFeedback({
-          type: 'success',
-          text: `Coordenadas obtidas via GPS com precisão de ±${Math.round(pos.coords.accuracy)}m!`,
-        });
-        setTimeout(() => setFeedback(null), 4000);
+
+        // Se a acurácia for maior que 500m (comum em navegadores desktop triangulados por IP)
+        if (accuracy > 500) {
+          setFeedback({
+            type: 'warning',
+            text: `Localização obtida com margem de ±${(accuracy / 1000).toFixed(1)}km (estimativa de rede/IP). Para máxima precisão, digite ou cole o link do Google Maps da sua sede.`,
+          });
+        } else {
+          setFeedback({
+            type: 'success',
+            text: `GPS de alta precisão capturado com sucesso (precisão de ±${accuracy}m)!`,
+          });
+          setTimeout(() => setFeedback(null), 5000);
+        }
       },
       (err) => {
         setLocating(false);
@@ -67,22 +96,39 @@ export default function AdminEmpresaPage() {
           type: 'error',
           text: `Falha ao obter GPS: ${err.message || 'Permissão negada'}.`,
         });
-        setTimeout(() => setFeedback(null), 4000);
+        setTimeout(() => setFeedback(null), 5000);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settings.hqName.trim()) return;
+    if (!hqName.trim()) {
+      setFeedback({ type: 'error', text: 'Nome da sede é obrigatório.' });
+      return;
+    }
+
+    const cleanLat = parseFloat(latStr.trim().replace(',', '.'));
+    const cleanLon = parseFloat(lonStr.trim().replace(',', '.'));
+
+    const validation = validateCoordinates(cleanLat, cleanLon);
+    if (!validation.valid) {
+      setFeedback({ type: 'error', text: validation.error || 'Coordenadas inválidas.' });
+      return;
+    }
 
     setSaving(true);
     try {
       const res = await fetch('/api/admin/empresa', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          hqName: hqName.trim(),
+          hqLatitude: cleanLat,
+          hqLongitude: cleanLon,
+          hqRadiusMeters,
+        }),
       });
 
       const data = await res.json();
@@ -90,7 +136,7 @@ export default function AdminEmpresaPage() {
         throw new Error(data.error || 'Erro ao salvar configurações');
       }
 
-      setFeedback({ type: 'success', text: 'Configurações da Sede e Geofence atualizadas com sucesso!' });
+      setFeedback({ type: 'success', text: 'Configurações da Sede e Geofence salvas com sucesso!' });
       setTimeout(() => setFeedback(null), 4000);
       await fetchSettings();
     } catch (err: any) {
@@ -100,23 +146,36 @@ export default function AdminEmpresaPage() {
     }
   };
 
-  const mapsUrl = `https://www.google.com/maps?q=${settings.hqLatitude},${settings.hqLongitude}`;
+  const currentLatNum = parseFloat(latStr.trim().replace(',', '.')) || 0;
+  const currentLonNum = parseFloat(lonStr.trim().replace(',', '.')) || 0;
+  const mapsUrl = `https://www.google.com/maps?q=${currentLatNum},${currentLonNum}`;
 
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Toast Feedback */}
       {feedback && (
         <div
-          className={`w-full p-3.5 rounded-lg border text-body-sm font-medium flex items-center gap-2.5 animate-fadeIn shadow-soft ${
+          className={`w-full p-4 rounded-xl border text-body-sm font-medium flex items-start gap-3 animate-fadeIn shadow-soft ${
             feedback.type === 'success'
-              ? 'bg-secondary-container/40 border-secondary text-on-secondary-container'
+              ? 'bg-secondary-container/50 border-secondary text-on-secondary-container'
+              : feedback.type === 'warning'
+              ? 'bg-alert-warning/15 border-alert-warning text-navy-deep'
               : 'bg-error-container/60 border-error text-on-error-container'
           }`}
         >
-          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            {feedback.type === 'success' ? 'check_circle' : 'error'}
+          <span
+            className={`material-symbols-outlined text-[22px] shrink-0 ${
+              feedback.type === 'success'
+                ? 'text-secondary'
+                : feedback.type === 'warning'
+                ? 'text-alert-warning'
+                : 'text-error'
+            }`}
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
+            {feedback.type === 'success' ? 'check_circle' : feedback.type === 'warning' ? 'warning' : 'error'}
           </span>
-          <span className="flex-1">{feedback.text}</span>
+          <span className="flex-1 leading-relaxed">{feedback.text}</span>
         </div>
       )}
 
@@ -145,6 +204,24 @@ export default function AdminEmpresaPage() {
               </h2>
             </div>
 
+            {/* Smart Paste Box */}
+            <div className="bg-surface-container-low p-3.5 rounded-xl border border-border-subtle space-y-1.5">
+              <label className="block text-xs font-bold text-navy-deep flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-secondary text-[16px]">content_paste</span>
+                <span>Colar Coordenadas ou Link do Google Maps (Opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={smartPasteInput}
+                onChange={(e) => handleSmartPaste(e.target.value)}
+                placeholder="Ex: -23.550520, -46.633308 ou link do Google Maps"
+                className="w-full p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-xs text-navy-deep font-mono focus:border-navy-deep outline-none"
+              />
+              <p className="text-[11px] text-on-surface-variant">
+                Cole as coordenadas copiadas do Google Maps para preenchimento automático instantâneo.
+              </p>
+            </div>
+
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-body-sm font-semibold text-navy-deep mb-1">
@@ -152,8 +229,8 @@ export default function AdminEmpresaPage() {
                 </label>
                 <input
                   type="text"
-                  value={settings.hqName}
-                  onChange={(e) => setSettings({ ...settings, hqName: e.target.value })}
+                  value={hqName}
+                  onChange={(e) => setHqName(e.target.value)}
                   placeholder="Ex: Sede Principal EventPoint - Galpão 01"
                   className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
                   required
@@ -166,13 +243,14 @@ export default function AdminEmpresaPage() {
                     Latitude (GPS) *
                   </label>
                   <input
-                    type="number"
-                    step="any"
-                    value={settings.hqLatitude}
-                    onChange={(e) => setSettings({ ...settings, hqLatitude: parseFloat(e.target.value) || 0 })}
+                    type="text"
+                    value={latStr}
+                    onChange={(e) => setLatStr(e.target.value)}
+                    placeholder="-23.550520"
                     className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md font-mono text-on-surface focus:border-navy-deep outline-none"
                     required
                   />
+                  <span className="text-[10px] text-on-surface-variant mt-0.5 block">Ex: -23.550520</span>
                 </div>
 
                 <div>
@@ -180,13 +258,14 @@ export default function AdminEmpresaPage() {
                     Longitude (GPS) *
                   </label>
                   <input
-                    type="number"
-                    step="any"
-                    value={settings.hqLongitude}
-                    onChange={(e) => setSettings({ ...settings, hqLongitude: parseFloat(e.target.value) || 0 })}
+                    type="text"
+                    value={lonStr}
+                    onChange={(e) => setLonStr(e.target.value)}
+                    placeholder="-46.633308"
                     className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md font-mono text-on-surface focus:border-navy-deep outline-none"
                     required
                   />
+                  <span className="text-[10px] text-on-surface-variant mt-0.5 block">Ex: -46.633308</span>
                 </div>
               </div>
 
@@ -195,15 +274,15 @@ export default function AdminEmpresaPage() {
                   <label className="block text-body-sm font-semibold text-navy-deep">
                     Raio de Tolerância / Geofence (Metros) *
                   </label>
-                  <span className="text-xs font-bold text-secondary">{settings.hqRadiusMeters} metros</span>
+                  <span className="text-xs font-bold text-secondary">{hqRadiusMeters} metros</span>
                 </div>
                 <input
                   type="range"
                   min="50"
                   max="3000"
                   step="50"
-                  value={settings.hqRadiusMeters}
-                  onChange={(e) => setSettings({ ...settings, hqRadiusMeters: parseInt(e.target.value, 10) || 500 })}
+                  value={hqRadiusMeters}
+                  onChange={(e) => setHqRadiusMeters(parseInt(e.target.value, 10) || 500)}
                   className="w-full h-2 bg-surface-container rounded-lg appearance-none cursor-pointer accent-navy-deep"
                 />
                 <div className="flex justify-between text-[10px] text-on-surface-variant mt-1">
@@ -247,13 +326,13 @@ export default function AdminEmpresaPage() {
               </h3>
 
               <p className="text-body-sm text-on-surface-variant">
-                Qualquer batida de ponto registrada fora do raio de <strong>{settings.hqRadiusMeters}m</strong> dessas coordenadas sem uma viagem vinculada gerará um alerta de <strong>"Fora da Sede"</strong> no dashboard administrativo.
+                Qualquer batida de ponto registrada fora do raio de <strong>{hqRadiusMeters}m</strong> dessas coordenadas sem uma viagem vinculada gerará um alerta de <strong>"Fora da Sede"</strong> no dashboard administrativo.
               </p>
 
               <div className="p-3 bg-surface-container-low rounded-lg text-xs space-y-1 font-mono text-navy-deep">
-                <p>LAT: {settings.hqLatitude}</p>
-                <p>LON: {settings.hqLongitude}</p>
-                <p>RAIO: {settings.hqRadiusMeters} metros</p>
+                <p>LAT: {latStr}</p>
+                <p>LON: {lonStr}</p>
+                <p>RAIO: {hqRadiusMeters} metros</p>
               </div>
 
               <a
@@ -263,17 +342,17 @@ export default function AdminEmpresaPage() {
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-surface-container text-navy-deep hover:bg-surface-container-high font-bold rounded-lg text-xs transition shadow-sm"
               >
                 <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                <span>Abrir no Google Maps</span>
+                <span>Conferir no Google Maps</span>
               </a>
             </div>
 
             <div className="bg-secondary-container/30 border border-secondary/30 rounded-xl p-4 text-xs text-on-secondary-container space-y-1.5">
               <p className="font-bold flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">info</span>
-                <span>Como funciona o Geofencing?</span>
+                <span>Dica de Localização</span>
               </p>
               <p>
-                O sistema usa a fórmula de <em>Haversine</em> de alta precisão. Quando o colaborador clica em "Bater Ponto", o GPS calcula a distância euclidiana da Terra até a sede.
+                Ao cadastrar no computador de escritório, o navegador pode estimar o local pelo provedor de internet (IP). Você pode abrir o Google Maps, clicar com o botão direito no local da sua sede, copiar as coordenadas e colar no campo inteligente acima.
               </p>
             </div>
           </div>

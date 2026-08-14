@@ -42,15 +42,56 @@ export async function GET(request: Request) {
          ORDER BY t.timestamp DESC LIMIT 50`,
         [userId]
       );
-      if (rows && rows.length > 0) {
-        return NextResponse.json({ success: true, timeEntries: rows });
-      }
+
+      // Busca adicionais de técnicas do colaborador no mês atual
+      const tecs = await query<any>(
+        `SELECT COALESCE(SUM(total_amount_centavos), 0) as "totalCentavos",
+                COALESCE(SUM(techniques_count), 0) as "techniquesCount"
+         FROM event_technique_services
+         WHERE user_id = $1 AND TO_CHAR(service_date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`,
+        [userId]
+      );
+      const monthlyTechniquesCentavos = Number(tecs?.[0]?.totalCentavos || 0);
+      const monthlyTechniquesCount = Number(tecs?.[0]?.techniquesCount || 0);
+
+      // Busca diárias de viagens do colaborador no mês atual
+      const trips = await query<any>(
+        `SELECT COALESCE(SUM(tp.total_allowance_centavos), 0) as "totalCentavos",
+                COALESCE(SUM(tp.days_count), 0) as "daysCount"
+         FROM trip_participants tp
+         JOIN trips tr ON tr.id = tp.trip_id
+         WHERE tp.user_id = $1 AND tr.status != 'CANCELLED' 
+           AND (TO_CHAR(tr.start_date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM') OR TO_CHAR(tr.end_date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM'))`,
+        [userId]
+      );
+      const monthlyTravelCentavos = Number(trips?.[0]?.totalCentavos || 0);
+      const monthlyTravelDays = Number(trips?.[0]?.daysCount || 0);
+
+      return NextResponse.json({
+        success: true,
+        timeEntries: rows || [],
+        monthlyBonus: {
+          techniquesCentavos: monthlyTechniquesCentavos,
+          techniquesCount: monthlyTechniquesCount,
+          travelCentavos: monthlyTravelCentavos,
+          travelDays: monthlyTravelDays,
+        },
+      });
     } catch {
       // Fallback em memória
     }
 
     const userEntries = memoryTimeEntries.filter((e) => e.user_id === userId);
-    return NextResponse.json({ success: true, timeEntries: userEntries });
+    return NextResponse.json({
+      success: true,
+      timeEntries: userEntries,
+      monthlyBonus: {
+        techniquesCentavos: 45000,
+        techniquesCount: 3,
+        travelCentavos: 30000,
+        travelDays: 2,
+      },
+    });
   } catch (error: unknown) {
     console.error('[API Ponto GET Error]:', error);
     return NextResponse.json({ error: 'Erro ao buscar registros de ponto' }, { status: 500 });

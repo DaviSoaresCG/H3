@@ -1,4 +1,9 @@
-import { calculateDistanceMeters, isOutsideRadius } from '../src/lib/geofence';
+import {
+  calculateDistanceMeters,
+  isOutsideRadius,
+  parseCoordinatesInput,
+  validateCoordinates,
+} from '../src/lib/geofence';
 
 describe('Módulo de Geofencing e Cálculo de GPS', () => {
   // Coordenadas da Sede (Avenida Paulista, São Paulo)
@@ -40,5 +45,35 @@ describe('Módulo de Geofencing e Cálculo de GPS', () => {
 
   test('Retorna false graciosamente se as coordenadas forem nulas', () => {
     expect(isOutsideRadius(null, null, hqLat, hqLon, 500)).toBe(false);
+  });
+
+  describe('Parseamento Inteligente e Validação de Coordenadas (Ticket 01)', () => {
+    test('Extrai latitude e longitude de string com vírgula padrão', () => {
+      const parsed = parseCoordinatesInput('-23.550520, -46.633308');
+      expect(parsed).toEqual({ latitude: -23.55052, longitude: -46.633308 });
+    });
+
+    test('Extrai coordenadas com vírgula como separador decimal brasileiro', () => {
+      const parsed = parseCoordinatesInput('-23,550520; -46,633308');
+      expect(parsed).toEqual({ latitude: -23.55052, longitude: -46.633308 });
+    });
+
+    test('Extrai coordenadas de link do Google Maps com query param ?q=', () => {
+      const parsed = parseCoordinatesInput('https://www.google.com/maps?q=-23.550520,-46.633308');
+      expect(parsed).toEqual({ latitude: -23.55052, longitude: -46.633308 });
+    });
+
+    test('Extrai coordenadas de link do Google Maps com @lat,lon', () => {
+      const parsed = parseCoordinatesInput('https://www.google.com/maps/place/Sede/@-23.550520,-46.633308,17z/data=...');
+      expect(parsed).toEqual({ latitude: -23.55052, longitude: -46.633308 });
+    });
+
+    test('Valida coordenadas dentro do intervalo aceitável', () => {
+      expect(validateCoordinates(-23.55, -46.63)).toEqual({ valid: true });
+      expect(validateCoordinates(0, 0)).toEqual({ valid: true });
+      expect(validateCoordinates(-95, -46.63).valid).toBe(false);
+      expect(validateCoordinates(-23.55, 200).valid).toBe(false);
+      expect(validateCoordinates(NaN, -46.63).valid).toBe(false);
+    });
   });
 });

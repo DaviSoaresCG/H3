@@ -8,6 +8,7 @@ import {
   AnomalyAlertItem,
   AnomalyType,
   VehicleNoteWithDetails,
+  EmployeeTechniqueSummary,
 } from '@/types';
 
 type AlertFilterType = 'ALL' | 'CRITICAL' | AnomalyType;
@@ -19,7 +20,11 @@ export default function AdminDashboardPage() {
     pendingMaintenanceAlertsCount: 0,
     anomaliesCount: 0,
     totalAudioDiariesCount: 0,
+    totalTechniquesAmountCentavos: 0,
+    totalTechniquesCount: 0,
+    totalTravelAllowancesCentavos: 0,
   });
+  const [employeeTechniques, setEmployeeTechniques] = useState<EmployeeTechniqueSummary[]>([]);
   const [audioFeed, setAudioFeed] = useState<AudioDiaryFeedItem[]>([]);
   const [, setVehicleAlerts] = useState<VehicleNoteWithDetails[]>([]);
   const [anomalyAlerts, setAnomalyAlerts] = useState<AnomalyAlertItem[]>([]);
@@ -43,8 +48,12 @@ export default function AdminDashboardPage() {
             pendingMaintenanceAlertsCount: 0,
             anomaliesCount: 0,
             totalAudioDiariesCount: 0,
+            totalTechniquesAmountCentavos: 0,
+            totalTechniquesCount: 0,
+            totalTravelAllowancesCentavos: 0,
           }
         );
+        setEmployeeTechniques(json.employeeTechniques || json.stats?.employeeTechniques || []);
         setAudioFeed(json.audioDiariesFeed || []);
         setVehicleAlerts(json.vehicleAlerts || []);
         setAnomalyAlerts(json.anomalyAlerts || []);
@@ -77,11 +86,9 @@ export default function AdminDashboardPage() {
         setPlayingAudioId(item.id);
         audio.onended = () => setPlayingAudioId(null);
         audio.onerror = () => {
-          // Fallback se URL de teste não responder
           setTimeout(() => setPlayingAudioId(null), 3000);
         };
       } else {
-        // Simulação visual de áudio tocando
         setPlayingAudioId(item.id);
         setTimeout(() => setPlayingAudioId(null), 4000);
       }
@@ -102,6 +109,14 @@ export default function AdminDashboardPage() {
       : anomalyAlerts.filter((a) => a.type === alertFilter);
 
   const totalAlertsCount = stats.anomaliesCount + stats.pendingMaintenanceAlertsCount;
+  const totalTechniquesReais = ((stats.totalTechniquesAmountCentavos || 0) / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+  const totalTravelReais = ((stats.totalTravelAllowancesCentavos || 0) / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
 
   return (
     <div className="space-y-6">
@@ -112,7 +127,7 @@ export default function AdminDashboardPage() {
             Painel Executivo
           </h1>
           <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-            Monitoramento operacional em tempo real e inteligência de eventos.
+            Monitoramento operacional em tempo real, adicional de técnicas e inteligência de eventos.
           </p>
         </div>
 
@@ -140,19 +155,19 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 1. SEÇÃO DE KPIS OPERACIONAIS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 1. SEÇÃO DE KPIS OPERACIONAIS & FINANCEIROS */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* KPI 1: Funcionários Ativos */}
-        <div className="bg-surface-card border-l-4 border-l-secondary border border-border-subtle rounded-xl p-5 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-wider">
-            Funcionários Presentes
+        <div className="bg-surface-card border-l-4 border-l-secondary border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
+          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
+            Presentes Hoje
           </span>
-          <div className="flex items-end justify-between mt-3">
-            <span className="text-4xl font-black text-navy-deep leading-none">
+          <div className="flex items-end justify-between mt-2">
+            <span className="text-3xl font-black text-navy-deep leading-none">
               {stats.activeWorkersCount}
             </span>
             <span
-              className="material-symbols-outlined text-secondary text-[36px]"
+              className="material-symbols-outlined text-secondary text-[28px]"
               style={{ fontVariationSettings: "'FILL' 1" }}
             >
               groups
@@ -161,55 +176,87 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* KPI 2: Veículos na Rua */}
-        <div className="bg-surface-card border-l-4 border-l-navy-deep border border-border-subtle rounded-xl p-5 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-wider">
+        <div className="bg-surface-card border-l-4 border-l-navy-deep border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
+          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
             Veículos em Rota
           </span>
-          <div className="flex items-end justify-between mt-3">
-            <span className="text-4xl font-black text-navy-deep leading-none">
+          <div className="flex items-end justify-between mt-2">
+            <span className="text-3xl font-black text-navy-deep leading-none">
               {stats.vehiclesOnRoadCount}
             </span>
-            <span className="material-symbols-outlined text-slate-serious text-[36px]">
+            <span className="material-symbols-outlined text-slate-serious text-[28px]">
               local_shipping
             </span>
           </div>
         </div>
 
-        {/* KPI 3: Relatos Hoje */}
-        <div className="bg-surface-card border-l-4 border-l-slate-serious border border-border-subtle rounded-xl p-5 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-wider">
-            Relatos por Áudio (Whisper)
+        {/* KPI 3: Adicionais de Técnicas no Mês */}
+        <div className="bg-surface-card border-l-4 border-l-navy-deep border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
+              Técnicas (Mês)
+            </span>
+            <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold">
+              {stats.totalTechniquesCount || 0} un
+            </span>
+          </div>
+          <div className="flex items-end justify-between mt-2">
+            <span className="text-2xl font-black text-navy-deep leading-none">
+              {totalTechniquesReais}
+            </span>
+            <span className="material-symbols-outlined text-secondary text-[28px]">
+              assignment_turned_in
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 4: Diárias de Viagem no Mês */}
+        <div className="bg-surface-card border-l-4 border-l-secondary border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
+          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
+            Diárias Viagens (Mês)
           </span>
-          <div className="flex items-end justify-between mt-3">
-            <span className="text-4xl font-black text-navy-deep leading-none">
+          <div className="flex items-end justify-between mt-2">
+            <span className="text-2xl font-black text-secondary leading-none">
+              {totalTravelReais}
+            </span>
+            <span className="material-symbols-outlined text-secondary text-[28px]">
+              flight_takeoff
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 5: Relatos Hoje */}
+        <div className="bg-surface-card border-l-4 border-l-slate-serious border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
+          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
+            Relatos Áudio
+          </span>
+          <div className="flex items-end justify-between mt-2">
+            <span className="text-3xl font-black text-navy-deep leading-none">
               {stats.totalAudioDiariesCount}
             </span>
-            <span className="material-symbols-outlined text-slate-serious text-[36px]">
+            <span className="material-symbols-outlined text-slate-serious text-[28px]">
               record_voice_over
             </span>
           </div>
         </div>
 
-        {/* KPI 4: Alertas Críticos */}
+        {/* KPI 6: Alertas Críticos */}
         <div
-          className={`border rounded-xl p-5 shadow-soft flex flex-col justify-between relative overflow-hidden transition-all ${
+          className={`border rounded-xl p-4 shadow-soft flex flex-col justify-between relative overflow-hidden transition-all ${
             totalAlertsCount > 0
               ? 'bg-error-container border-error/30 text-on-error-container'
               : 'bg-surface-card border-border-subtle text-navy-deep'
           }`}
         >
-          {totalAlertsCount > 0 && (
-            <div className="absolute -right-4 -top-4 w-16 h-16 bg-alert-error/20 rounded-full blur-xl"></div>
-          )}
-          <span className="font-label-caps text-label-caps uppercase font-bold tracking-wider">
-            Alertas Operacionais
+          <span className="font-label-caps text-[11px] uppercase font-bold tracking-wider">
+            Alertas / Falhas
           </span>
-          <div className="flex items-end justify-between mt-3">
-            <span className="text-4xl font-black leading-none">
+          <div className="flex items-end justify-between mt-2">
+            <span className="text-3xl font-black leading-none">
               {totalAlertsCount}
             </span>
             <span
-              className={`material-symbols-outlined text-[36px] ${
+              className={`material-symbols-outlined text-[28px] ${
                 totalAlertsCount > 0 ? 'text-alert-error' : 'text-slate-serious'
               }`}
               style={totalAlertsCount > 0 ? { fontVariationSettings: "'FILL' 1" } : undefined}
@@ -298,55 +345,27 @@ export default function AdminDashboardPage() {
                           >
                             {isPlaying ? 'pause' : 'play_arrow'}
                           </span>
-                          <div className="flex items-center gap-1 h-5">
-                            <div
-                              className="waveform-bar"
-                              style={{
-                                animationPlayState: isPlaying ? 'running' : 'paused',
-                                backgroundColor: isPlaying ? '#ffffff' : '#64748B',
-                              }}
-                            ></div>
-                            <div
-                              className="waveform-bar"
-                              style={{
-                                animationPlayState: isPlaying ? 'running' : 'paused',
-                                backgroundColor: isPlaying ? '#ffffff' : '#64748B',
-                              }}
-                            ></div>
-                            <div
-                              className="waveform-bar"
-                              style={{
-                                animationPlayState: isPlaying ? 'running' : 'paused',
-                                backgroundColor: isPlaying ? '#ffffff' : '#64748B',
-                              }}
-                            ></div>
-                            <div
-                              className="waveform-bar"
-                              style={{
-                                animationPlayState: isPlaying ? 'running' : 'paused',
-                                backgroundColor: isPlaying ? '#ffffff' : '#64748B',
-                              }}
-                            ></div>
-                          </div>
-                          <span className="font-mono text-xs ml-1 font-bold">
-                            {item.durationSeconds ? `0:${String(item.durationSeconds).padStart(2, '0')}` : '0:30'}
+                          <span className="text-xs font-mono font-bold">
+                            {item.durationSeconds ? `${item.durationSeconds}s` : '0:45'}
                           </span>
                         </button>
                       ) : (
-                        <span className="px-3 py-1.5 rounded-full bg-surface-container text-xs font-bold text-on-surface-variant shrink-0 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
-                          Texto Manual
-                        </span>
+                        <div className="rounded-full px-4 py-2 bg-surface-container-low text-on-surface-variant flex items-center gap-2 shrink-0 text-xs font-semibold">
+                          <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                          <span>Texto</span>
+                        </div>
                       )}
 
-                      {/* Transcrição Balloon */}
-                      <div className="bg-surface-container-lowest rounded-lg p-3 border border-border-subtle flex-1 shadow-sm">
-                        <p className="font-body-sm text-body-sm text-navy-deep italic">
-                          <span className="font-bold text-secondary not-italic mr-1.5 font-mono">
-                            {item.isFallbackText ? 'JUSTIFICATIVA:' : 'WHISPER IA:'}
-                          </span>
+                      {/* Transcription Text Box */}
+                      <div className="bg-surface-container-lowest border border-border-subtle rounded-xl p-3.5 flex-1 w-full">
+                        <p className="text-body-sm font-body-sm text-on-surface italic leading-relaxed">
                           "{item.transcriptionText || 'Sem transcrição disponível.'}"
                         </p>
+                        {item.fallbackReason && (
+                          <span className="text-xs text-alert-warning font-semibold block mt-1.5">
+                            Motivo do relato em texto: {item.fallbackReason}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -356,100 +375,97 @@ export default function AdminDashboardPage() {
           </div>
         </section>
 
-        {/* PAINEL LATERAL: ALERTAS & EXCEÇÕES (1/3) */}
+        {/* ALERTAS OPERACIONAIS & ANOMALIAS */}
         <section className="lg:col-span-4 bg-surface-card border border-border-subtle rounded-xl shadow-soft flex flex-col">
           <div className="p-5 border-b border-border-subtle flex justify-between items-center bg-surface-container-lowest rounded-t-xl">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-alert-error text-[22px]">warning</span>
+              <span className="material-symbols-outlined text-alert-warning text-[24px]">
+                crisis_alert
+              </span>
               <h2 className="font-headline-md text-headline-md font-bold text-navy-deep">
-                Alertas em Tempo Real
+                Alertas Ativos
               </h2>
             </div>
+            <span className="bg-error-container text-on-error-container text-label-bold font-label-bold px-2 py-0.5 rounded-full text-xs">
+              {filteredAnomalies.length}
+            </span>
           </div>
 
-          <div className="p-4 border-b border-border-subtle bg-surface-container-low flex flex-wrap gap-1 text-xs font-bold">
+          <div className="p-4 border-b border-border-subtle flex gap-1.5 overflow-x-auto bg-surface-card">
             <button
               onClick={() => setAlertFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                alertFilter === 'ALL' ? 'bg-navy-deep text-white' : 'text-on-surface-variant hover:bg-surface-container'
+              className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                alertFilter === 'ALL'
+                  ? 'bg-navy-deep text-white shadow-sm'
+                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
               }`}
             >
-              Todos ({anomalyAlerts.length})
+              Todos
             </button>
             <button
               onClick={() => setAlertFilter('CRITICAL')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                alertFilter === 'CRITICAL' ? 'bg-alert-error text-white' : 'text-on-surface-variant hover:bg-surface-container'
+              className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                alertFilter === 'CRITICAL'
+                  ? 'bg-alert-error text-white shadow-sm'
+                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
               }`}
             >
-              Críticos
-            </button>
-            <button
-              onClick={() => setAlertFilter('VEHICLE_OVERDUE')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                alertFilter === 'VEHICLE_OVERDUE' ? 'bg-navy-deep text-white' : 'text-on-surface-variant hover:bg-surface-container'
-              }`}
-            >
-              Frota
+              Críticos (&gt;12h)
             </button>
             <button
               onClick={() => setAlertFilter('OUTSIDE_HQ')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                alertFilter === 'OUTSIDE_HQ' ? 'bg-navy-deep text-white' : 'text-on-surface-variant hover:bg-surface-container'
+              className={`px-3 py-1 text-xs font-bold rounded-md transition ${
+                alertFilter === 'OUTSIDE_HQ'
+                  ? 'bg-secondary text-white shadow-sm'
+                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
               }`}
             >
-              Geofence
+              Fora Sede
             </button>
           </div>
 
           <div className="p-5 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[500px]">
             {filteredAnomalies.length === 0 ? (
-              <div className="text-center py-10 text-on-surface-variant space-y-2">
-                <span className="material-symbols-outlined text-[32px] text-success-vibrant">
+              <div className="text-center py-12 text-on-surface-variant space-y-2">
+                <span className="material-symbols-outlined text-[36px] text-success-vibrant">
                   check_circle
                 </span>
-                <p className="text-body-sm">Nenhuma anomalia ativa no momento.</p>
+                <p className="text-body-sm font-semibold text-navy-deep">Nenhuma anomalia ativa.</p>
+                <p className="text-xs text-on-surface-variant">Toda a operação está dentro dos conformes.</p>
               </div>
             ) : (
-              filteredAnomalies.map((alert) => {
-                const isCritical = alert.severity === 'CRITICAL';
-                return (
-                  <div
-                    key={alert.id}
-                    className={`p-3.5 rounded-xl border flex flex-col gap-1.5 shadow-sm ${
-                      isCritical
-                        ? 'bg-error-container/40 border-error/30 text-on-error-container'
-                        : 'bg-surface-container-low border-border-subtle text-navy-deep'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`material-symbols-outlined text-[18px] ${
-                            isCritical ? 'text-alert-error' : 'text-alert-warning'
-                          }`}
-                          style={{ fontVariationSettings: "'FILL' 1" }}
-                        >
-                          {isCritical ? 'error' : 'info'}
-                        </span>
-                        <span className="font-bold text-xs uppercase tracking-wide">
-                          {alert.type.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-outline font-mono">
-                        {new Date(alert.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              filteredAnomalies.map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`p-4 rounded-xl border flex flex-col gap-2 shadow-sm ${
+                    alert.severity === 'CRITICAL'
+                      ? 'bg-error-container/40 border-error text-on-error-container'
+                      : alert.severity === 'HIGH'
+                      ? 'bg-alert-warning/15 border-alert-warning text-navy-deep'
+                      : 'bg-surface-container-low border-border-subtle text-navy-deep'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[20px] text-alert-error">
+                        {alert.type === 'SHIFT_EXCEEDED_12H'
+                          ? 'timer_off'
+                          : alert.type === 'OUTSIDE_HQ'
+                          ? 'wrong_location'
+                          : alert.type === 'VEHICLE_OVERDUE'
+                          ? 'car_crash'
+                          : 'location_off'}
                       </span>
+                      <span className="font-bold text-body-sm">{alert.employeeName}</span>
                     </div>
-
-                    <p className="text-body-sm font-medium">{alert.message}</p>
-                    {alert.employeeName && (
-                      <p className="text-xs text-on-surface-variant font-semibold">
-                        Colaborador: {alert.employeeName}
-                      </p>
-                    )}
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-card">
+                      {alert.severity}
+                    </span>
                   </div>
-                );
-              })
+
+                  <p className="text-xs font-medium leading-relaxed">{alert.message}</p>
+                </div>
+              ))
             )}
           </div>
         </section>

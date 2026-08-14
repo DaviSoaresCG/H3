@@ -194,12 +194,26 @@ export interface AnomalyAlertItem {
   shiftHours?: number;
 }
 
+export interface EmployeeTechniqueSummary {
+  userId: string;
+  employeeName: string;
+  servicesCount: number;
+  techniquesCount: number;
+  totalAmountCentavos: number;
+  lastEventName?: string;
+  lastServiceDate?: string;
+}
+
 export interface DashboardStatsData {
   activeWorkersCount: number;
   vehiclesOnRoadCount: number;
   pendingMaintenanceAlertsCount: number;
   anomaliesCount: number;
   totalAudioDiariesCount: number;
+  totalTechniquesAmountCentavos?: number;
+  totalTechniquesCount?: number;
+  totalTravelAllowancesCentavos?: number;
+  employeeTechniques?: EmployeeTechniqueSummary[];
 }
 
 export interface AudioDiaryFeedItem {

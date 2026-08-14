@@ -7,7 +7,12 @@ import {
   detectShiftExceeded12h,
   detectOverdueVehicleUsage,
 } from '@/lib/dashboard-aggregator';
-import { AnomalyAlertItem, DashboardStatsData, AudioDiaryFeedItem } from '@/types';
+import {
+  AnomalyAlertItem,
+  DashboardStatsData,
+  AudioDiaryFeedItem,
+  EmployeeTechniqueSummary,
+} from '@/types';
 
 interface TimeEntryDbRow {
   id: string;
@@ -48,12 +53,17 @@ export async function GET() {
     const memoryEntries: any[] = (globalThis as any).memoryTimeEntries || [];
     const memoryUsages: any[] = (globalThis as any).memoryUsages || [];
     const memoryNotes: any[] = (globalThis as any).memoryVehicleNotes || [];
+    const memoryTechniques: any[] = (globalThis as any).memoryTechniques || [];
 
     let activeWorkers: TimeEntryDbRow[] = [];
     let vehiclesOnRoad: VehicleUsageDbRow[] = [];
     let audioDiariesFeed: AudioDiaryFeedItem[] = [];
     let vehicleAlerts: any[] = [];
     const anomalyAlerts: AnomalyAlertItem[] = [];
+    let totalTechniquesAmountCentavos = 0;
+    let totalTechniquesCount = 0;
+    let totalTravelAllowancesCentavos = 0;
+    let employeeTechniques: EmployeeTechniqueSummary[] = [];
 
     try {
       // 1. Funcionários trabalhando: encontra o último registro por funcionário
@@ -188,6 +198,46 @@ export async function GET() {
       if (dbNotes) {
         vehicleAlerts = dbNotes;
       }
+
+      // 5. Total de Técnicas de Eventos no Mês e Detalhamento por Colaborador
+      const dbTechniques = await query<any>(
+        `SELECT u.id as "userId", u.name as "employeeName",
+                COUNT(t.id) as "servicesCount",
+                COALESCE(SUM(t.techniques_count), 0) as "techniquesCount",
+                COALESCE(SUM(t.total_amount_centavos), 0) as "totalAmountCentavos",
+                MAX(t.event_name) as "lastEventName",
+                TO_CHAR(MAX(t.service_date), 'YYYY-MM-DD') as "lastServiceDate"
+         FROM users u
+         JOIN event_technique_services t ON t.user_id = u.id AND TO_CHAR(t.service_date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+         GROUP BY u.id, u.name
+         ORDER BY "totalAmountCentavos" DESC`
+      );
+
+      if (dbTechniques && dbTechniques.length > 0) {
+        employeeTechniques = dbTechniques.map((row) => ({
+          userId: row.userId,
+          employeeName: row.employeeName,
+          servicesCount: Number(row.servicesCount || 0),
+          techniquesCount: Number(row.techniquesCount || 0),
+          totalAmountCentavos: Number(row.totalAmountCentavos || 0),
+          lastEventName: row.lastEventName,
+          lastServiceDate: row.lastServiceDate,
+        }));
+        totalTechniquesAmountCentavos = employeeTechniques.reduce((sum, e) => sum + e.totalAmountCentavos, 0);
+        totalTechniquesCount = employeeTechniques.reduce((sum, e) => sum + e.techniquesCount, 0);
+      }
+
+      // 6. Total de Diárias de Viagem no Mês
+      const dbTrips = await query<any>(
+        `SELECT COALESCE(SUM(tp.total_allowance_centavos), 0) as "totalCentavos"
+         FROM trip_participants tp
+         JOIN trips tr ON tr.id = tp.trip_id
+         WHERE tr.status != 'CANCELLED' 
+           AND (TO_CHAR(tr.start_date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM') OR TO_CHAR(tr.end_date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM'))`
+      );
+      if (dbTrips && dbTrips.length > 0) {
+        totalTravelAllowancesCentavos = Number(dbTrips[0].totalCentavos || 0);
+      }
     } catch {
       // Memory fallback
       activeWorkers = memoryEntries
@@ -241,56 +291,20 @@ export async function GET() {
           createdAt: n.created_at,
         }));
 
-      // Anomalias no memory fallback
-      for (const e of memoryEntries) {
-        if (e.is_outside_hq) {
-          anomalyAlerts.push({
-            id: `outside-hq-${e.id}`,
-            type: 'OUTSIDE_HQ',
-            severity: 'HIGH',
-            employeeName: 'Carlos Montador',
-            timestamp: e.timestamp,
-            message: 'Entrada registrada a mais de 500m da sede sem viagem agendada.',
-          });
-        }
-        if (e.gps_status === 'UNAVAILABLE') {
-          anomalyAlerts.push({
-            id: `no-gps-${e.id}`,
-            type: 'NO_GPS',
-            severity: 'MEDIUM',
-            employeeName: 'Carlos Montador',
-            timestamp: e.timestamp,
-            message: 'Ponto registrado sem coordenadas GPS disponíveis.',
-          });
-        }
-        if (e.entry_type === 'CLOCK_IN' && detectShiftExceeded12h(e.timestamp, now)) {
-          const shiftHours = calculateShiftDurationHours(e.timestamp, now);
-          anomalyAlerts.push({
-            id: `shift-12h-${e.id}`,
-            type: 'SHIFT_EXCEEDED_12H',
-            severity: 'CRITICAL',
-            employeeName: 'Carlos Montador',
-            timestamp: e.timestamp,
-            shiftHours: Number(shiftHours.toFixed(1)),
-            message: `Jornada contínua de ${shiftHours.toFixed(1)}h sem encerramento de ponto.`,
-          });
-        }
-      }
-
-      // Detecção de carro atrasado no memory fallback
-      for (const usage of vehiclesOnRoad) {
-        if (detectOverdueVehicleUsage(usage.pickedUpAt, now, 14)) {
-          const hoursOnRoad = calculateShiftDurationHours(usage.pickedUpAt, now);
-          anomalyAlerts.push({
-            id: `vehicle-overdue-${usage.id}`,
-            type: 'VEHICLE_OVERDUE',
-            severity: 'HIGH',
-            employeeName: usage.driverName,
-            timestamp: usage.pickedUpAt,
-            message: `Veículo ${usage.vehicleName} (${usage.plate}) na rua há mais de ${hoursOnRoad.toFixed(1)}h sem devolução à sede.`,
-          });
-        }
-      }
+      // Memory Techniques Fallback
+      totalTechniquesAmountCentavos = memoryTechniques.reduce((sum: number, t: any) => sum + (t.totalAmountCentavos || 15000), 0);
+      totalTechniquesCount = memoryTechniques.reduce((sum: number, t: any) => sum + (t.techniquesCount || 1), 0);
+      employeeTechniques = [
+        {
+          userId: '11111111-1111-1111-1111-111111111111',
+          employeeName: 'Carlos Montador',
+          servicesCount: memoryTechniques.length || 1,
+          techniquesCount: totalTechniquesCount || 1,
+          totalAmountCentavos: totalTechniquesAmountCentavos || 15000,
+          lastEventName: memoryTechniques[0]?.eventName || 'Montagem de Som',
+          lastServiceDate: new Date().toISOString().slice(0, 10),
+        },
+      ];
     }
 
     const stats: DashboardStatsData = {
@@ -299,6 +313,10 @@ export async function GET() {
       pendingMaintenanceAlertsCount: vehicleAlerts.length,
       anomaliesCount: anomalyAlerts.length,
       totalAudioDiariesCount: audioDiariesFeed.length,
+      totalTechniquesAmountCentavos,
+      totalTechniquesCount,
+      totalTravelAllowancesCentavos,
+      employeeTechniques,
     };
 
     return NextResponse.json({
@@ -309,6 +327,7 @@ export async function GET() {
       audioDiariesFeed,
       vehicleAlerts,
       anomalyAlerts,
+      employeeTechniques,
     });
   } catch (error: unknown) {
     console.error('[API Dashboard Error]:', error);

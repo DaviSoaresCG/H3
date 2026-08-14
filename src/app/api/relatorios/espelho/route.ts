@@ -25,16 +25,139 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    // Não-admin só pode consultar o próprio espelho
     const requestedUserId = searchParams.get('userId');
-    const userId = payload.role === 'ADMIN' && requestedUserId ? requestedUserId : payload.userId;
+    const isAdmin = payload.role === 'ADMIN';
     const month = searchParams.get('month') || new Date().toISOString().substring(0, 7);
     const sundayRule: SundayHolidayRule = (searchParams.get('sundayRule') as SundayHolidayRule) || 'OVERTIME_100';
 
+    // Se for não-admin, restringe estritamente ao próprio userId (INV-04)
+    let targetUserId = isAdmin ? (requestedUserId || 'ALL') : payload.userId;
+
     try {
+      // 1. Caso seja "ALL" (Visão Geral de Todos os Colaboradores da Folha)
+      if (targetUserId === 'ALL' && isAdmin) {
+        const allEmployees = await query<User>(
+          'SELECT id, cpf, name, phone, role, created_at as "createdAt" FROM users ORDER BY name ASC'
+        );
+
+        const teamSummaries = [];
+        let grandWorkedHours = 0;
+        let grandRegularHours = 0;
+        let grandOvertimeHours = 0;
+        let grandTravelCentavos = 0;
+        let grandTravelDays = 0;
+        let grandTechniquesCentavos = 0;
+        let grandTechniquesCount = 0;
+        let grandBonusCentavos = 0;
+
+        for (const emp of allEmployees || []) {
+          // Batidas do colaborador no mês
+          const empEntries = await query<any>(
+            `SELECT t.id, t.user_id as "userId", t.entry_type as "entry_type", t.timestamp, 
+                    t.latitude, t.longitude, t.gps_status as "gpsStatus", t.is_outside_hq as "isOutsideHq",
+                    t.is_adjusted as "is_adjusted", t.adjusted_by as "adjustedBy", t.adjustment_reason as "adjustment_reason"
+             FROM time_entries t
+             WHERE t.user_id = $1 AND TO_CHAR(t.timestamp, 'YYYY-MM') = $2
+             ORDER BY t.timestamp ASC`,
+            [emp.id, month]
+          );
+
+          // Técnicas do colaborador no mês
+          const empTechniques = await query<any>(
+            `SELECT id, techniques_count as "techniquesCount", total_amount_centavos as "totalAmountCentavos"
+             FROM event_technique_services 
+             WHERE user_id = $1 AND TO_CHAR(service_date, 'YYYY-MM') = $2`,
+            [emp.id, month]
+          );
+
+          const totalTecCount = (empTechniques || []).reduce(
+            (acc: number, curr: any) => acc + Number(curr.techniquesCount || 1),
+            0
+          );
+          const totalTecCentavos = (empTechniques || []).reduce(
+            (acc: number, curr: any) => acc + Number(curr.totalAmountCentavos || 0),
+            0
+          );
+
+          // Viagens do colaborador no mês
+          const empTrips = await query<any>(
+            `SELECT tp.days_count as "daysCount", tp.total_allowance_centavos as "totalAllowanceCentavos"
+             FROM trip_participants tp
+             JOIN trips tr ON tr.id = tp.trip_id
+             WHERE tp.user_id = $1 
+               AND tr.status != 'CANCELLED'
+               AND (TO_CHAR(tr.start_date, 'YYYY-MM') = $2 OR TO_CHAR(tr.end_date, 'YYYY-MM') = $2)`,
+            [emp.id, month]
+          );
+
+          const totalTripDays = (empTrips || []).reduce(
+            (acc: number, curr: any) => acc + Number(curr.daysCount || 0),
+            0
+          );
+          const totalTripCentavos = (empTrips || []).reduce(
+            (acc: number, curr: any) => acc + Number(curr.totalAllowanceCentavos || 0),
+            0
+          );
+
+          const summary = calculateTimesheetSummary({
+            entries: empEntries || [],
+            techniqueServicesCount: totalTecCount,
+            travelDaysCount: totalTripDays,
+            customTechniquesCentavos: totalTecCentavos,
+            customTravelCentavos: totalTripCentavos,
+            sundayRule,
+          });
+
+          grandWorkedHours += summary.totalWorkedHours;
+          grandRegularHours += summary.regularHours;
+          grandOvertimeHours += summary.overtimeHours;
+          grandTravelDays += totalTripDays;
+          grandTravelCentavos += totalTripCentavos;
+          grandTechniquesCount += totalTecCount;
+          grandTechniquesCentavos += totalTecCentavos;
+          grandBonusCentavos += summary.grandTotalBonusCentavos;
+
+          teamSummaries.push({
+            employee: emp,
+            entriesCount: empEntries?.length || 0,
+            totalWorkedHours: summary.totalWorkedHours,
+            regularHours: summary.regularHours,
+            overtimeHours: summary.overtimeHours,
+            sundayHolidayHours: summary.sundayHolidayHours,
+            sundayDaysCount: summary.sundayDaysCount,
+            sundayBonusReais: (summary.sundayBonusCentavos / 100).toFixed(2),
+            techniquesCount: totalTecCount,
+            totalTechniquesAmountReais: (totalTecCentavos / 100).toFixed(2),
+            travelDaysCount: totalTripDays,
+            totalTravelAllowancesReais: (totalTripCentavos / 100).toFixed(2),
+            grandTotalBonusReais: (summary.grandTotalBonusCentavos / 100).toFixed(2),
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          isTeamSummary: true,
+          month,
+          sundayRule,
+          teamSummaries,
+          teamTotals: {
+            employeesCount: teamSummaries.length,
+            totalWorkedHours: Number(grandWorkedHours.toFixed(2)),
+            regularHours: Number(grandRegularHours.toFixed(2)),
+            overtimeHours: Number(grandOvertimeHours.toFixed(2)),
+            travelDaysCount: grandTravelDays,
+            totalTravelAllowancesReais: (grandTravelCentavos / 100).toFixed(2),
+            techniquesCount: grandTechniquesCount,
+            totalTechniquesAmountReais: (grandTechniquesCentavos / 100).toFixed(2),
+            grandTotalBonusReais: (grandBonusCentavos / 100).toFixed(2),
+          },
+        });
+      }
+
+      // 2. Consulta de um Colaborador Individual
       const employee = await queryOne<User>(
         'SELECT id, cpf, name, phone, role, created_at as "createdAt" FROM users WHERE id = $1',
-        [userId]
+        [targetUserId]
       );
 
       const entries = await query<any>(
@@ -46,7 +169,7 @@ export async function GET(request: Request) {
          LEFT JOIN audio_diaries a ON a.time_entry_id = t.id
          WHERE t.user_id = $1 AND TO_CHAR(t.timestamp, 'YYYY-MM') = $2
          ORDER BY t.timestamp ASC`,
-        [userId, month]
+        [targetUserId, month]
       );
 
       const techniqueServices = await query<any>(
@@ -56,7 +179,7 @@ export async function GET(request: Request) {
          FROM event_technique_services 
          WHERE user_id = $1 AND TO_CHAR(service_date, 'YYYY-MM') = $2
          ORDER BY service_date ASC`,
-        [userId, month]
+        [targetUserId, month]
       );
 
       const totalTechniquesCount = (techniqueServices || []).reduce(
@@ -77,7 +200,7 @@ export async function GET(request: Request) {
            AND tr.status != 'CANCELLED'
            AND (TO_CHAR(tr.start_date, 'YYYY-MM') = $2 OR TO_CHAR(tr.end_date, 'YYYY-MM') = $2)
          ORDER BY tr.start_date ASC`,
-        [userId, month]
+        [targetUserId, month]
       );
 
       const travelDaysCount = (tripParticipations || []).reduce(
@@ -100,8 +223,9 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         success: true,
+        isTeamSummary: false,
         month,
-        employee: employee || { id: userId, name: payload.name, cpf: payload.cpf, role: payload.role },
+        employee: employee || { id: targetUserId, name: payload.name, cpf: payload.cpf, role: payload.role },
         entries: entries || [],
         techniqueServices: techniqueServices || [],
         tripParticipations: tripParticipations || [],
@@ -124,25 +248,25 @@ export async function GET(request: Request) {
       console.warn('[Espelho DB Fallback]:', err.message);
       // Memory fallback
       const userEntries = memoryTimeEntries.filter(
-        (e) => e.user_id === userId && e.timestamp.startsWith(month)
+        (e) => e.user_id === targetUserId && e.timestamp.startsWith(month)
       );
 
       const memoryTechniques = (globalStore.memoryTechniques || []).filter(
-        (t: any) => t.userId === userId && (t.serviceDate?.startsWith(month) || t.createdAt?.startsWith(month))
+        (t: any) => t.userId === targetUserId && (t.serviceDate?.startsWith(month) || t.createdAt?.startsWith(month))
       );
 
       const memoryTrips = (globalStore.memoryTrips || []).filter(
         (tr: any) =>
           tr.status !== 'CANCELLED' &&
           (tr.startDate?.startsWith(month) || tr.endDate?.startsWith(month)) &&
-          tr.participants?.some((p: any) => p.userId === userId)
+          tr.participants?.some((p: any) => p.userId === targetUserId)
       );
 
       const totalTechniquesCount = memoryTechniques.reduce((acc: number, curr: any) => acc + (curr.techniquesCount || 1), 0);
       const totalTechniquesCentavos = memoryTechniques.reduce((acc: number, curr: any) => acc + (curr.totalAmountCentavos || 15000), 0);
 
       const tripParticipations = memoryTrips.map((tr: any) => {
-        const p = tr.participants.find((part: any) => part.userId === userId);
+        const p = tr.participants.find((part: any) => part.userId === targetUserId);
         return {
           title: tr.title,
           destinationCity: tr.destinationCity,
@@ -167,8 +291,9 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         success: true,
+        isTeamSummary: false,
         month,
-        employee: { id: userId, name: payload.name, cpf: payload.cpf, role: payload.role },
+        employee: { id: targetUserId, name: payload.name, cpf: payload.cpf, role: payload.role },
         entries: userEntries,
         techniqueServices: memoryTechniques,
         tripParticipations,
@@ -189,7 +314,7 @@ export async function GET(request: Request) {
       });
     }
   } catch (error: unknown) {
-    console.error('[API Espelho Error]:', error);
+    console.error('[API Espelho GET Error]:', error);
     return NextResponse.json({ error: 'Erro ao gerar espelho de ponto' }, { status: 500 });
   }
 }
