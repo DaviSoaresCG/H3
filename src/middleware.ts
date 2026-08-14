@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyJwtEdge } from '@/lib/auth';
+import { verifyJwtEdge } from '@/lib/auth-edge';
 
 function getRoleRedirectPath(role: string): string {
   return role === 'ADMIN' ? '/admin/dashboard' : '/ponto';
