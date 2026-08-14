@@ -12,6 +12,7 @@ import {
   DashboardStatsData,
   AudioDiaryFeedItem,
   EmployeeTechniqueSummary,
+  EmployeePontoTodayStatus,
 } from '@/types';
 
 interface TimeEntryDbRow {
@@ -55,6 +56,7 @@ export async function GET() {
     const memoryNotes: any[] = (globalThis as any).memoryVehicleNotes || [];
     const memoryTechniques: any[] = (globalThis as any).memoryTechniques || [];
 
+    let employeesPontoStatus: EmployeePontoTodayStatus[] = [];
     let activeWorkers: TimeEntryDbRow[] = [];
     let vehiclesOnRoad: VehicleUsageDbRow[] = [];
     let audioDiariesFeed: AudioDiaryFeedItem[] = [];
@@ -66,7 +68,40 @@ export async function GET() {
     let employeeTechniques: EmployeeTechniqueSummary[] = [];
 
     try {
-      // 1. Funcionários trabalhando: encontra o último registro por funcionário
+      // 1. Status de Ponto e Geofence de Todos os Colaboradores no dia de hoje
+      const dbAllPonto = await query<any>(
+        `SELECT u.id as "userId", u.name as "employeeName", u.cpf, u.phone, u.role,
+                t.id as "entryId", t.entry_type as "lastEntryType", t.timestamp as "lastTimestamp",
+                t.gps_status as "gpsStatus", t.is_outside_hq as "isOutsideHq",
+                a.transcription_text as "transcriptionText"
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT id, entry_type, timestamp, gps_status, is_outside_hq
+           FROM time_entries te
+           WHERE te.user_id = u.id AND TO_CHAR(te.timestamp, 'YYYY-MM-DD') = TO_CHAR(NOW(), 'YYYY-MM-DD')
+           ORDER BY timestamp DESC LIMIT 1
+         ) t ON true
+         LEFT JOIN audio_diaries a ON a.time_entry_id = t.id
+         ORDER BY u.name ASC`
+      );
+
+      if (dbAllPonto && dbAllPonto.length > 0) {
+        employeesPontoStatus = dbAllPonto.map((row) => ({
+          userId: row.userId,
+          employeeName: row.employeeName,
+          cpf: row.cpf,
+          phone: row.phone,
+          role: row.role,
+          hasPunchedToday: !!row.lastEntryType,
+          lastEntryType: row.lastEntryType || null,
+          lastTimestamp: row.lastTimestamp || null,
+          isOutsideHq: !!row.isOutsideHq,
+          gpsStatus: row.gpsStatus || 'OK',
+          transcriptionText: row.transcriptionText || null,
+        }));
+      }
+
+      // 2. Funcionários trabalhando ativamente: CLOCK_IN ou MEAL_END
       const latestEntries = await query<TimeEntryDbRow>(
         `SELECT DISTINCT ON (user_id) t.id, t.user_id as "userId", t.entry_type as "entryType", 
                 t.timestamp, t.latitude, t.longitude, t.gps_status as "gpsStatus", 
@@ -142,7 +177,7 @@ export async function GET() {
         }
       }
 
-      // 2. Veículos na rua e detecção de atraso de devolução (>14h)
+      // 3. Veículos na rua e detecção de atraso de devolução (>14h)
       const dbUsages = await query<VehicleUsageDbRow>(
         `SELECT u.id, u.vehicle_id as "vehicleId", u.user_id as "userId", u.picked_up_at as "pickedUpAt",
                 v.name as "vehicleName", v.plate, usr.name as "driverName"
@@ -169,7 +204,7 @@ export async function GET() {
         }
       }
 
-      // 3. Feed cronológico de áudios do dia (Whisper)
+      // 4. Feed cronológico de áudios do dia (Whisper)
       const dbAudios = await query<AudioDiaryFeedItem>(
         `SELECT a.id, a.time_entry_id as "timeEntryId", a.audio_url as "audioUrl", 
                 a.transcription_text as "transcriptionText", a.is_fallback_text as "isFallbackText",
@@ -185,7 +220,7 @@ export async function GET() {
         audioDiariesFeed = dbAudios;
       }
 
-      // 4. Alertas de manutenção de veículos pendentes
+      // 5. Alertas de manutenção de veículos pendentes
       const dbNotes = await query<any>(
         `SELECT n.id, n.vehicle_id as "vehicleId", n.category, n.note_text as "noteText",
                 n.created_at as "createdAt", v.name as "vehicleName", v.plate, u.name as "reportedBy"
@@ -199,7 +234,7 @@ export async function GET() {
         vehicleAlerts = dbNotes;
       }
 
-      // 5. Total de Técnicas de Eventos no Mês e Detalhamento por Colaborador
+      // 6. Total de Técnicas de Eventos no Mês
       const dbTechniques = await query<any>(
         `SELECT u.id as "userId", u.name as "employeeName",
                 COUNT(t.id) as "servicesCount",
@@ -227,7 +262,7 @@ export async function GET() {
         totalTechniquesCount = employeeTechniques.reduce((sum, e) => sum + e.techniquesCount, 0);
       }
 
-      // 6. Total de Diárias de Viagem no Mês
+      // 7. Total de Diárias de Viagem no Mês
       const dbTrips = await query<any>(
         `SELECT COALESCE(SUM(tp.total_allowance_centavos), 0) as "totalCentavos"
          FROM trip_participants tp
@@ -240,6 +275,20 @@ export async function GET() {
       }
     } catch {
       // Memory fallback
+      employeesPontoStatus = [
+        {
+          userId: '11111111-1111-1111-1111-111111111111',
+          employeeName: 'Carlos Montador',
+          cpf: '12345678901',
+          role: 'EMPLOYEE',
+          hasPunchedToday: true,
+          lastEntryType: 'CLOCK_IN',
+          lastTimestamp: new Date().toISOString(),
+          isOutsideHq: false,
+          gpsStatus: 'OK',
+        },
+      ];
+
       activeWorkers = memoryEntries
         .filter((e) => e.entry_type === 'CLOCK_IN')
         .map((e) => ({
@@ -291,20 +340,8 @@ export async function GET() {
           createdAt: n.created_at,
         }));
 
-      // Memory Techniques Fallback
       totalTechniquesAmountCentavos = memoryTechniques.reduce((sum: number, t: any) => sum + (t.totalAmountCentavos || 15000), 0);
       totalTechniquesCount = memoryTechniques.reduce((sum: number, t: any) => sum + (t.techniquesCount || 1), 0);
-      employeeTechniques = [
-        {
-          userId: '11111111-1111-1111-1111-111111111111',
-          employeeName: 'Carlos Montador',
-          servicesCount: memoryTechniques.length || 1,
-          techniquesCount: totalTechniquesCount || 1,
-          totalAmountCentavos: totalTechniquesAmountCentavos || 15000,
-          lastEventName: memoryTechniques[0]?.eventName || 'Montagem de Som',
-          lastServiceDate: new Date().toISOString().slice(0, 10),
-        },
-      ];
     }
 
     const stats: DashboardStatsData = {
@@ -322,12 +359,12 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       stats,
+      employeesPontoStatus,
       activeWorkers,
       vehiclesOnRoad,
       audioDiariesFeed,
       vehicleAlerts,
       anomalyAlerts,
-      employeeTechniques,
     });
   } catch (error: unknown) {
     console.error('[API Dashboard Error]:', error);

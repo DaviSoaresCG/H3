@@ -4,14 +4,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   DashboardStatsData,
-  AudioDiaryFeedItem,
   AnomalyAlertItem,
   AnomalyType,
   VehicleNoteWithDetails,
   EmployeeTechniqueSummary,
+  EmployeePontoTodayStatus,
 } from '@/types';
+import { formatEmployeePontoBadge } from '@/lib/dashboard-aggregator';
 
 type AlertFilterType = 'ALL' | 'CRITICAL' | AnomalyType;
+type EmployeePontoFilter = 'ALL' | 'PUNCHED' | 'OUTSIDE_HQ' | 'NO_PUNCH';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStatsData>({
@@ -24,17 +26,15 @@ export default function AdminDashboardPage() {
     totalTechniquesCount: 0,
     totalTravelAllowancesCentavos: 0,
   });
-  const [employeeTechniques, setEmployeeTechniques] = useState<EmployeeTechniqueSummary[]>([]);
-  const [audioFeed, setAudioFeed] = useState<AudioDiaryFeedItem[]>([]);
+  const [, setEmployeeTechniques] = useState<EmployeeTechniqueSummary[]>([]);
+  const [employeesPontoStatus, setEmployeesPontoStatus] = useState<EmployeePontoTodayStatus[]>([]);
   const [, setVehicleAlerts] = useState<VehicleNoteWithDetails[]>([]);
   const [anomalyAlerts, setAnomalyAlerts] = useState<AnomalyAlertItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [audioSearchQuery, setAudioSearchQuery] = useState('');
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
+  const [pontoFilter, setPontoFilter] = useState<EmployeePontoFilter>('ALL');
   const [alertFilter, setAlertFilter] = useState<AlertFilterType>('ALL');
-
-  // Audio playback state
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
           }
         );
         setEmployeeTechniques(json.employeeTechniques || json.stats?.employeeTechniques || []);
-        setAudioFeed(json.audioDiariesFeed || []);
+        setEmployeesPontoStatus(json.employeesPontoStatus || []);
         setVehicleAlerts(json.vehicleAlerts || []);
         setAnomalyAlerts(json.anomalyAlerts || []);
       }
@@ -71,35 +71,19 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
 
-  const handleTogglePlayAudio = (item: AudioDiaryFeedItem) => {
-    if (playingAudioId === item.id) {
-      audioPlayerRef.current?.pause();
-      setPlayingAudioId(null);
-    } else {
-      if (item.audioUrl) {
-        if (audioPlayerRef.current) {
-          audioPlayerRef.current.pause();
-        }
-        const audio = new Audio(item.audioUrl);
-        audioPlayerRef.current = audio;
-        audio.play();
-        setPlayingAudioId(item.id);
-        audio.onended = () => setPlayingAudioId(null);
-        audio.onerror = () => {
-          setTimeout(() => setPlayingAudioId(null), 3000);
-        };
-      } else {
-        setPlayingAudioId(item.id);
-        setTimeout(() => setPlayingAudioId(null), 4000);
-      }
-    }
-  };
+  // Filtros dos funcionários
+  const filteredEmployees = employeesPontoStatus.filter((emp) => {
+    const matchesSearch =
+      emp.employeeName.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
+      emp.cpf.includes(employeeSearchQuery);
 
-  const filteredAudioFeed = audioFeed.filter(
-    (item) =>
-      item.employeeName?.toLowerCase().includes(audioSearchQuery.toLowerCase()) ||
-      item.transcriptionText?.toLowerCase().includes(audioSearchQuery.toLowerCase())
-  );
+    if (!matchesSearch) return false;
+
+    if (pontoFilter === 'PUNCHED') return emp.hasPunchedToday;
+    if (pontoFilter === 'OUTSIDE_HQ') return emp.hasPunchedToday && emp.isOutsideHq;
+    if (pontoFilter === 'NO_PUNCH') return !emp.hasPunchedToday;
+    return true;
+  });
 
   const filteredAnomalies =
     alertFilter === 'ALL'
@@ -118,145 +102,93 @@ export default function AdminDashboardPage() {
     currency: 'BRL',
   });
 
+  const punchedCount = employeesPontoStatus.filter((e) => e.hasPunchedToday).length;
+  const outsideHqCount = employeesPontoStatus.filter((e) => e.hasPunchedToday && e.isOutsideHq).length;
+
   return (
     <div className="space-y-6">
-      {/* Top Search & Actions Bar */}
+      {/* Top Header & Refresh */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-headline-lg font-headline-lg font-black text-navy-deep tracking-tight">
             Painel Executivo
           </h1>
           <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-            Monitoramento operacional em tempo real, adicional de técnicas e inteligência de eventos.
+            Monitoramento de ponto em tempo real, validação de raio GPS e adicionais acumulados.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
-              search
-            </span>
-            <input
-              type="text"
-              value={audioSearchQuery}
-              onChange={(e) => setAudioSearchQuery(e.target.value)}
-              placeholder="Buscar em relatos ou equipes..."
-              className="pl-10 pr-4 py-2 bg-surface-card border border-border-subtle rounded-lg text-body-sm font-body-sm text-navy-deep placeholder-on-surface-variant focus:border-navy-deep focus:ring-1 focus:ring-navy-deep outline-none w-64 transition-colors"
-            />
-          </div>
-
           <button
             onClick={fetchDashboardData}
-            className="p-2 bg-surface-card hover:bg-surface-container border border-border-subtle rounded-lg text-navy-deep transition-colors shadow-sm"
+            className="p-2.5 bg-surface-card hover:bg-surface-container border border-border-subtle rounded-lg text-navy-deep transition-colors shadow-sm flex items-center gap-2 text-xs font-bold"
             title="Atualizar dados agora"
           >
-            <span className="material-symbols-outlined text-[20px]">refresh</span>
+            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            <span className="hidden sm:inline">Atualizar Agora</span>
           </button>
         </div>
       </div>
 
-      {/* 1. SEÇÃO DE KPIS OPERACIONAIS & FINANCEIROS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* KPI 1: Funcionários Ativos */}
-        <div className="bg-surface-card border-l-4 border-l-secondary border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
-            Presentes Hoje
-          </span>
-          <div className="flex items-end justify-between mt-2">
-            <span className="text-3xl font-black text-navy-deep leading-none">
-              {stats.activeWorkersCount}
-            </span>
-            <span
-              className="material-symbols-outlined text-secondary text-[28px]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              groups
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 2: Veículos na Rua */}
-        <div className="bg-surface-card border-l-4 border-l-navy-deep border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
-            Veículos em Rota
-          </span>
-          <div className="flex items-end justify-between mt-2">
-            <span className="text-3xl font-black text-navy-deep leading-none">
-              {stats.vehiclesOnRoadCount}
-            </span>
-            <span className="material-symbols-outlined text-slate-serious text-[28px]">
-              local_shipping
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 3: Adicionais de Técnicas no Mês */}
-        <div className="bg-surface-card border-l-4 border-l-navy-deep border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
+      {/* 1. SEÇÃO DE KPIS ESTRATÉGICOS (3 CARDS) */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* KPI 1: Adicionais de Técnicas no Mês */}
+        <div className="bg-surface-card border-l-4 border-l-navy-deep border border-border-subtle rounded-xl p-5 shadow-soft flex flex-col justify-between">
           <div className="flex justify-between items-center">
-            <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
+            <span className="font-label-caps text-[12px] text-on-surface-variant uppercase font-bold tracking-wider">
               Técnicas (Mês)
             </span>
-            <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold">
-              {stats.totalTechniquesCount || 0} un
+            <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded font-bold">
+              {stats.totalTechniquesCount || 0} montagens
             </span>
           </div>
-          <div className="flex items-end justify-between mt-2">
-            <span className="text-2xl font-black text-navy-deep leading-none">
+          <div className="flex items-end justify-between mt-3">
+            <span className="text-3xl font-black text-navy-deep leading-none">
               {totalTechniquesReais}
             </span>
-            <span className="material-symbols-outlined text-secondary text-[28px]">
+            <span className="material-symbols-outlined text-secondary text-[32px]">
               assignment_turned_in
             </span>
           </div>
         </div>
 
-        {/* KPI 4: Diárias de Viagem no Mês */}
-        <div className="bg-surface-card border-l-4 border-l-secondary border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
-            Diárias Viagens (Mês)
-          </span>
-          <div className="flex items-end justify-between mt-2">
-            <span className="text-2xl font-black text-secondary leading-none">
+        {/* KPI 2: Diárias de Viagem no Mês */}
+        <div className="bg-surface-card border-l-4 border-l-secondary border border-border-subtle rounded-xl p-5 shadow-soft flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <span className="font-label-caps text-[12px] text-on-surface-variant uppercase font-bold tracking-wider">
+              Diárias Viagens (Mês)
+            </span>
+            <span className="text-xs bg-secondary-container/60 text-on-secondary-container px-2 py-0.5 rounded font-bold">
+              R$ 150/dia
+            </span>
+          </div>
+          <div className="flex items-end justify-between mt-3">
+            <span className="text-3xl font-black text-secondary leading-none">
               {totalTravelReais}
             </span>
-            <span className="material-symbols-outlined text-secondary text-[28px]">
+            <span className="material-symbols-outlined text-secondary text-[32px]">
               flight_takeoff
             </span>
           </div>
         </div>
 
-        {/* KPI 5: Relatos Hoje */}
-        <div className="bg-surface-card border-l-4 border-l-slate-serious border border-border-subtle rounded-xl p-4 shadow-soft flex flex-col justify-between">
-          <span className="font-label-caps text-[11px] text-on-surface-variant uppercase font-bold tracking-wider">
-            Relatos Áudio
-          </span>
-          <div className="flex items-end justify-between mt-2">
-            <span className="text-3xl font-black text-navy-deep leading-none">
-              {stats.totalAudioDiariesCount}
-            </span>
-            <span className="material-symbols-outlined text-slate-serious text-[28px]">
-              record_voice_over
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 6: Alertas Críticos */}
+        {/* KPI 3: Alertas Operacionais & Anomalias */}
         <div
-          className={`border rounded-xl p-4 shadow-soft flex flex-col justify-between relative overflow-hidden transition-all ${
+          className={`border rounded-xl p-5 shadow-soft flex flex-col justify-between relative overflow-hidden transition-all ${
             totalAlertsCount > 0
               ? 'bg-error-container border-error/30 text-on-error-container'
               : 'bg-surface-card border-border-subtle text-navy-deep'
           }`}
         >
-          <span className="font-label-caps text-[11px] uppercase font-bold tracking-wider">
-            Alertas / Falhas
+          <span className="font-label-caps text-[12px] uppercase font-bold tracking-wider">
+            Alertas / Falhas Operacionais
           </span>
-          <div className="flex items-end justify-between mt-2">
+          <div className="flex items-end justify-between mt-3">
             <span className="text-3xl font-black leading-none">
               {totalAlertsCount}
             </span>
             <span
-              className={`material-symbols-outlined text-[28px] ${
+              className={`material-symbols-outlined text-[32px] ${
                 totalAlertsCount > 0 ? 'text-alert-error' : 'text-slate-serious'
               }`}
               style={totalAlertsCount > 0 ? { fontVariationSettings: "'FILL' 1" } : undefined}
@@ -267,115 +199,290 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* 2. GRID PRINCIPAL: FEED DE ÁUDIOS (2/3) VS ALERTAS & EXCEÇÕES (1/3) */}
+      {/* 2. GRID PRINCIPAL: MONITORAMENTO DE PONTO & GEOFENCE (8 cols) VS ALERTAS ATIVOS (4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* FEED DE RELATOS DE ÁUDIO (WHISPER) */}
+        {/* LISTA DE FUNCIONÁRIOS E MONITORAMENTO DE PONTO / RAIO GPS */}
         <section className="lg:col-span-8 bg-surface-card border border-border-subtle rounded-xl shadow-soft flex flex-col">
-          <div className="p-5 border-b border-border-subtle flex justify-between items-center bg-surface-container-lowest rounded-t-xl">
+          <div className="p-5 border-b border-border-subtle flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-surface-container-lowest rounded-t-xl">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary text-[24px]">forum</span>
-              <h2 className="font-headline-md text-headline-md font-bold text-navy-deep">
-                Feed de Relatos em Áudio
-              </h2>
+              <span className="material-symbols-outlined text-secondary text-[24px]">how_to_reg</span>
+              <div>
+                <h2 className="font-headline-md text-headline-md font-bold text-navy-deep">
+                  Ponto da Equipe Hoje
+                </h2>
+                <p className="text-xs text-on-surface-variant">
+                  {punchedCount} de {employeesPontoStatus.length} colaboradores registraram ponto hoje
+                  {outsideHqCount > 0 && (
+                    <span className="text-alert-error font-bold ml-1">
+                      ({outsideHqCount} fora do raio da sede)
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
+
             <Link
               href="/admin/ponto"
-              className="font-label-bold text-label-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
+              className="font-label-bold text-label-bold text-secondary hover:underline cursor-pointer flex items-center gap-1 text-xs self-start sm:self-auto"
             >
-              <span>Ver todos</span>
+              <span>Espelho de Ponto Geral</span>
               <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </Link>
           </div>
 
-          <div className="p-5 flex flex-col gap-4 flex-1">
+          {/* Filtros e Busca Rápida de Colaborador */}
+          <div className="p-4 border-b border-border-subtle bg-surface-card flex flex-col sm:flex-row gap-3 justify-between items-center">
+            {/* Abas de Filtro */}
+            <div className="flex gap-1.5 overflow-x-auto w-full sm:w-auto">
+              <button
+                onClick={() => setPontoFilter('ALL')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition shrink-0 ${
+                  pontoFilter === 'ALL'
+                    ? 'bg-navy-deep text-white shadow-sm'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                }`}
+              >
+                Todos ({employeesPontoStatus.length})
+              </button>
+              <button
+                onClick={() => setPontoFilter('PUNCHED')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition shrink-0 ${
+                  pontoFilter === 'PUNCHED'
+                    ? 'bg-secondary text-white shadow-sm'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                }`}
+              >
+                Bateram Ponto ({punchedCount})
+              </button>
+              <button
+                onClick={() => setPontoFilter('OUTSIDE_HQ')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition shrink-0 ${
+                  pontoFilter === 'OUTSIDE_HQ'
+                    ? 'bg-alert-error text-white shadow-sm'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                }`}
+              >
+                Fora do Raio ({outsideHqCount})
+              </button>
+              <button
+                onClick={() => setPontoFilter('NO_PUNCH')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition shrink-0 ${
+                  pontoFilter === 'NO_PUNCH'
+                    ? 'bg-surface-container-high text-navy-deep shadow-sm'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
+                }`}
+              >
+                Sem Ponto ({employeesPontoStatus.length - punchedCount})
+              </button>
+            </div>
+
+            {/* Input de Busca */}
+            <div className="relative w-full sm:w-60">
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
+                search
+              </span>
+              <input
+                type="text"
+                value={employeeSearchQuery}
+                onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                placeholder="Buscar funcionário..."
+                className="w-full pl-8 pr-3 py-1.5 bg-surface-container-lowest border border-border-subtle rounded-lg text-xs font-medium text-navy-deep placeholder-on-surface-variant focus:border-navy-deep outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Tabela de Colaboradores */}
+          <div className="flex-1 overflow-x-auto">
             {loading ? (
-              <p className="text-center py-12 text-on-surface-variant text-body-sm animate-pulse">
-                Carregando relatos diários...
+              <p className="text-center py-16 text-on-surface-variant text-body-sm animate-pulse">
+                Carregando status dos colaboradores...
               </p>
-            ) : filteredAudioFeed.length === 0 ? (
-              <div className="text-center py-12 text-on-surface-variant space-y-2">
+            ) : filteredEmployees.length === 0 ? (
+              <div className="text-center py-16 text-on-surface-variant space-y-2">
                 <span className="material-symbols-outlined text-[36px] text-slate-serious">
-                  graphic_eq
+                  person_off
                 </span>
-                <p className="text-body-sm">Nenhum relato encontrado hoje.</p>
+                <p className="text-body-sm font-semibold">Nenhum funcionário encontrado no filtro selecionado.</p>
               </div>
             ) : (
-              filteredAudioFeed.map((item) => {
-                const isPlaying = playingAudioId === item.id;
-                const timeString = new Date(item.createdAt).toLocaleTimeString('pt-BR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-border-subtle bg-surface-container-lowest text-on-surface-variant uppercase font-bold text-[10px] tracking-wider">
+                    <th className="py-3 px-4">Colaborador</th>
+                    <th className="py-3 px-4">Status Hoje</th>
+                    <th className="py-3 px-4">Última Batida</th>
+                    <th className="py-3 px-4">Raio da Empresa</th>
+                    <th className="py-3 px-4 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle">
+                  {filteredEmployees.map((emp) => {
+                    const badge = formatEmployeePontoBadge(emp.lastEntryType);
+                    const formattedTime = emp.lastTimestamp
+                      ? new Date(emp.lastTimestamp).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '--:--';
 
-                return (
-                  <div
-                    key={item.id}
-                    className="flex flex-col gap-3 pb-4 border-b border-border-subtle last:border-0 last:pb-0"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2 text-on-surface">
-                        <span className="font-bold text-navy-deep text-body-md">
-                          {item.employeeName || 'Colaborador'}
-                        </span>
-                        <span className="w-1.5 h-1.5 bg-border-subtle rounded-full"></span>
-                        <span className="font-label-caps text-label-caps text-on-surface-variant uppercase">
-                          {item.isFallbackText ? 'Relato em Texto' : 'Áudio Transcrito'}
-                        </span>
-                      </div>
-                      <span className="font-body-sm text-body-sm text-on-surface-variant">
-                        Hoje, {timeString}
-                      </span>
-                    </div>
+                    const isExpanded = expandedEmployeeId === emp.userId;
 
-                    <div className="flex flex-col sm:flex-row gap-3 items-start">
-                      {/* Player Button */}
-                      {!item.isFallbackText ? (
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePlayAudio(item)}
-                          className={`rounded-full px-4 py-2 flex items-center gap-3 shrink-0 transition-colors shadow-sm ${
-                            isPlaying
-                              ? 'bg-secondary text-white'
-                              : 'bg-surface-container-low text-navy-deep hover:bg-surface-container'
-                          }`}
-                        >
+                    return (
+                      <tr
+                        key={emp.userId}
+                        className={`hover:bg-surface-container-lowest/80 transition-colors ${
+                          emp.hasPunchedToday && emp.isOutsideHq ? 'bg-alert-error/5' : ''
+                        }`}
+                      >
+                        {/* Colaborador */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-navy-deep/10 text-navy-deep font-bold flex items-center justify-center text-xs shrink-0">
+                              {emp.employeeName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-bold text-navy-deep">{emp.employeeName}</p>
+                              <p className="text-[10px] text-on-surface-variant font-mono">
+                                CPF: {emp.cpf}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Status Hoje */}
+                        <td className="py-3.5 px-4">
                           <span
-                            className="material-symbols-outlined text-[20px]"
-                            style={{ fontVariationSettings: "'FILL' 1" }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold border text-[11px] ${badge.badgeClass}`}
                           >
-                            {isPlaying ? 'pause' : 'play_arrow'}
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                badge.status === 'WORKING'
+                                  ? 'bg-secondary animate-pulse'
+                                  : badge.status === 'MEAL'
+                                  ? 'bg-alert-warning'
+                                  : badge.status === 'FINISHED'
+                                  ? 'bg-navy-deep'
+                                  : 'bg-on-surface-variant/40'
+                              }`}
+                            ></span>
+                            <span>{badge.label}</span>
                           </span>
-                          <span className="text-xs font-mono font-bold">
-                            {item.durationSeconds ? `${item.durationSeconds}s` : '0:45'}
-                          </span>
-                        </button>
-                      ) : (
-                        <div className="rounded-full px-4 py-2 bg-surface-container-low text-on-surface-variant flex items-center gap-2 shrink-0 text-xs font-semibold">
-                          <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                          <span>Texto</span>
-                        </div>
-                      )}
+                        </td>
 
-                      {/* Transcription Text Box */}
-                      <div className="bg-surface-container-lowest border border-border-subtle rounded-xl p-3.5 flex-1 w-full">
-                        <p className="text-body-sm font-body-sm text-on-surface italic leading-relaxed">
-                          "{item.transcriptionText || 'Sem transcrição disponível.'}"
-                        </p>
-                        {item.fallbackReason && (
-                          <span className="text-xs text-alert-warning font-semibold block mt-1.5">
-                            Motivo do relato em texto: {item.fallbackReason}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+                        {/* Horário da Última Batida */}
+                        <td className="py-3.5 px-4">
+                          {emp.hasPunchedToday ? (
+                            <div>
+                              <span className="font-mono font-bold text-navy-deep text-xs">
+                                {formattedTime}
+                              </span>
+                              <span className="text-[10px] text-on-surface-variant block">
+                                {emp.lastEntryType === 'CLOCK_IN'
+                                  ? 'Entrada'
+                                  : emp.lastEntryType === 'MEAL_START'
+                                  ? 'Início Almoço'
+                                  : emp.lastEntryType === 'MEAL_END'
+                                  ? 'Retorno Almoço'
+                                  : 'Saída'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-on-surface-variant font-mono text-xs">--:--</span>
+                          )}
+                        </td>
+
+                        {/* Localização & Geofence da Empresa */}
+                        <td className="py-3.5 px-4">
+                          {emp.hasPunchedToday ? (
+                            emp.isOutsideHq ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-error-container text-on-error-container border border-error/40 font-bold text-[11px]">
+                                <span className="material-symbols-outlined text-[14px]">
+                                  wrong_location
+                                </span>
+                                <span>Fora do Raio da Sede</span>
+                              </span>
+                            ) : emp.gpsStatus === 'UNAVAILABLE' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-alert-warning/20 text-navy-deep border border-alert-warning/40 font-bold text-[11px]">
+                                <span className="material-symbols-outlined text-[14px]">
+                                  location_disabled
+                                </span>
+                                <span>Sem GPS</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-on-secondary-container border border-secondary/30 font-bold text-[11px]">
+                                <span className="material-symbols-outlined text-[14px] text-secondary">
+                                  check_circle
+                                </span>
+                                <span>Dentro da Sede</span>
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-on-surface-variant text-xs">Aguardando registro</span>
+                          )}
+                        </td>
+
+                        {/* Ação */}
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {emp.transcriptionText && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedEmployeeId(isExpanded ? null : emp.userId)
+                                }
+                                className="p-1 rounded text-on-surface-variant hover:text-navy-deep hover:bg-surface-container transition"
+                                title="Ver relato de áudio"
+                              >
+                                <span className="material-symbols-outlined text-[18px]">
+                                  {isExpanded ? 'expand_less' : 'record_voice_over'}
+                                </span>
+                              </button>
+                            )}
+
+                            <Link
+                              href={`/admin/ponto?userId=${emp.userId}`}
+                              className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-navy-deep font-bold rounded text-xs transition border border-border-subtle inline-flex items-center gap-1"
+                            >
+                              <span>Espelho</span>
+                              <span className="material-symbols-outlined text-[14px]">
+                                arrow_forward
+                              </span>
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
+
+          {/* Relato expandido se clicado */}
+          {expandedEmployeeId && (
+            <div className="p-4 bg-surface-container-lowest border-t border-border-subtle">
+              {(() => {
+                const emp = employeesPontoStatus.find((e) => e.userId === expandedEmployeeId);
+                if (!emp || !emp.transcriptionText) return null;
+                return (
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-navy-deep flex items-center gap-1">
+                      <span className="material-symbols-outlined text-secondary text-[16px]">
+                        mic
+                      </span>
+                      <span>Último Relato de Áudio — {emp.employeeName}:</span>
+                    </p>
+                    <p className="text-xs italic text-on-surface-variant bg-surface-card p-3 rounded-lg border border-border-subtle leading-relaxed">
+                      "{emp.transcriptionText}"
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </section>
 
-        {/* ALERTAS OPERACIONAIS & ANOMALIAS */}
+        {/* ALERTAS OPERACIONAIS & ANOMALIAS (4 cols) */}
         <section className="lg:col-span-4 bg-surface-card border border-border-subtle rounded-xl shadow-soft flex flex-col">
           <div className="p-5 border-b border-border-subtle flex justify-between items-center bg-surface-container-lowest rounded-t-xl">
             <div className="flex items-center gap-2">

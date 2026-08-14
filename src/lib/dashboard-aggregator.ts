@@ -98,3 +98,48 @@ export function categorizeAnomalyAlert(params: {
 
   return null;
 }
+
+/**
+ * Retorna o badge visual e status formatado da jornada diária do colaborador
+ */
+export function formatEmployeePontoBadge(lastEntryType?: string | null): {
+  label: string;
+  badgeClass: string;
+  status: 'WORKING' | 'MEAL' | 'FINISHED' | 'NO_PUNCH';
+} {
+  if (!lastEntryType) {
+    return {
+      label: 'Sem Registro Hoje',
+      badgeClass: 'bg-surface-container text-on-surface-variant border-border-subtle',
+      status: 'NO_PUNCH',
+    };
+  }
+
+  switch (lastEntryType) {
+    case 'CLOCK_IN':
+    case 'MEAL_END':
+      return {
+        label: 'Em Expediente',
+        badgeClass: 'bg-secondary-container text-on-secondary-container border-secondary/30',
+        status: 'WORKING',
+      };
+    case 'MEAL_START':
+      return {
+        label: 'Em Intervalo (Almoço)',
+        badgeClass: 'bg-alert-warning/20 text-navy-deep border-alert-warning/40',
+        status: 'MEAL',
+      };
+    case 'CLOCK_OUT':
+      return {
+        label: 'Expediente Encerrado',
+        badgeClass: 'bg-surface-container-high text-navy-deep border-border-subtle',
+        status: 'FINISHED',
+      };
+    default:
+      return {
+        label: 'Ponto Registrado',
+        badgeClass: 'bg-surface-container text-navy-deep border-border-subtle',
+        status: 'WORKING',
+      };
+  }
+}

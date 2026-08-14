@@ -3,6 +3,7 @@ import {
   detectShiftExceeded12h,
   detectOverdueVehicleUsage,
   categorizeAnomalyAlert,
+  formatEmployeePontoBadge,
 } from '../src/lib/dashboard-aggregator';
 
 describe('Módulo de Agregação de Métricas e Alertas do Dashboard Executivo (Issue #8)', () => {
@@ -79,6 +80,27 @@ describe('Módulo de Agregação de Métricas e Alertas do Dashboard Executivo (
       });
 
       expect(alert).toBeNull();
+    });
+  });
+
+  describe('Formatação de Badges de Ponto dos Colaboradores Hoje', () => {
+    test('Retorna "Sem Registro Hoje" quando lastEntryType for nulo', () => {
+      const badge = formatEmployeePontoBadge(null);
+      expect(badge.status).toBe('NO_PUNCH');
+      expect(badge.label).toBe('Sem Registro Hoje');
+    });
+
+    test('Retorna "Em Expediente" para CLOCK_IN e MEAL_END', () => {
+      expect(formatEmployeePontoBadge('CLOCK_IN').status).toBe('WORKING');
+      expect(formatEmployeePontoBadge('MEAL_END').status).toBe('WORKING');
+    });
+
+    test('Retorna "Em Intervalo (Almoço)" para MEAL_START', () => {
+      expect(formatEmployeePontoBadge('MEAL_START').status).toBe('MEAL');
+    });
+
+    test('Retorna "Expediente Encerrado" para CLOCK_OUT', () => {
+      expect(formatEmployeePontoBadge('CLOCK_OUT').status).toBe('FINISHED');
     });
   });
 });

@@ -204,6 +204,20 @@ export interface EmployeeTechniqueSummary {
   lastServiceDate?: string;
 }
 
+export interface EmployeePontoTodayStatus {
+  userId: string;
+  employeeName: string;
+  cpf: string;
+  phone?: string | null;
+  role: string;
+  hasPunchedToday: boolean;
+  lastEntryType?: string | null;
+  lastTimestamp?: string | null;
+  isOutsideHq?: boolean;
+  gpsStatus?: 'OK' | 'UNAVAILABLE';
+  transcriptionText?: string | null;
+}
+
 export interface DashboardStatsData {
   activeWorkersCount: number;
   vehiclesOnRoadCount: number;
