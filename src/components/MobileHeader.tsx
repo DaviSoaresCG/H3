@@ -1,14 +1,44 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { User } from '@/types';
 
 interface MobileHeaderProps {
-  gpsStatus?: 'OK' | 'UNAVAILABLE';
   userName?: string;
+  avatarUrl?: string | null;
 }
 
-export function MobileHeader({ gpsStatus = 'OK', userName }: MobileHeaderProps) {
+export function MobileHeader({ userName: propUserName, avatarUrl: propAvatarUrl }: MobileHeaderProps) {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const fetchUserData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setCurrentUser(data.user);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
+
+    // Sincroniza em tempo real caso o usuário edite o perfil
+    const handleProfileUpdate = () => {
+      fetchUserData();
+    };
+
+    window.addEventListener('user-profile-updated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('user-profile-updated', handleProfileUpdate);
+    };
+  }, [fetchUserData]);
 
   const handleLogout = async () => {
     try {
@@ -21,45 +51,40 @@ export function MobileHeader({ gpsStatus = 'OK', userName }: MobileHeaderProps) 
     router.refresh();
   };
 
-  const isGpsOk = gpsStatus === 'OK';
-  const displayName = userName || 'EventPoint';
-  const initial = displayName.trim().charAt(0).toUpperCase() || 'E';
+  const displayName = propUserName || currentUser?.name || 'Colaborador';
+  const displayAvatar = propAvatarUrl !== undefined ? propAvatarUrl : currentUser?.avatarUrl;
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'C';
 
   return (
     <header className="bg-surface border-b border-surface-variant flex justify-between items-center w-full px-4 h-16 fixed top-0 left-0 right-0 z-40 md:hidden shadow-xs">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-navy-deep text-primary-container flex items-center justify-center font-black text-sm shadow-xs border border-surface-variant">
-          {initial}
+      {/* Colaborador: Foto de Perfil & Nome */}
+      <Link href="/perfil" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+        <div className="w-9 h-9 rounded-full bg-navy-deep text-primary-container flex items-center justify-center font-black text-sm shadow-xs border border-surface-variant overflow-hidden flex-shrink-0">
+          {displayAvatar ? (
+            <img
+              src={displayAvatar}
+              alt={displayName}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span>{initial}</span>
+          )}
         </div>
-        <span className="text-headline-md font-headline-md font-bold text-on-surface truncate max-w-[170px]">
+
+        <span className="text-headline-md font-headline-md font-bold text-on-surface truncate max-w-[210px]">
           {displayName}
         </span>
-      </div>
+      </Link>
 
-      <div className="flex items-center gap-2">
-        <div
-          className={`flex items-center gap-1 bg-surface-container-lowest border border-surface-variant px-2.5 py-1 rounded-full shadow-xs text-[11px] font-bold ${
-            isGpsOk ? 'text-success-vibrant' : 'text-alert-warning'
-          }`}
-        >
-          <span
-            className="material-symbols-outlined text-[14px]"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            {isGpsOk ? 'satellite_alt' : 'signal_disconnected'}
-          </span>
-          <span>{isGpsOk ? 'GPS ATIVO' : 'SEM GPS'}</span>
-        </div>
-
-        <button
-          onClick={handleLogout}
-          className="text-on-surface-variant hover:text-alert-error p-1.5 rounded-full hover:bg-surface-container transition-colors"
-          title="Sair da conta"
-          aria-label="Sair"
-        >
-          <span className="material-symbols-outlined text-[20px]">logout</span>
-        </button>
-      </div>
+      {/* Ação de Logout */}
+      <button
+        onClick={handleLogout}
+        className="text-on-surface-variant hover:text-alert-error p-2 rounded-full hover:bg-surface-container transition-colors flex items-center justify-center"
+        title="Sair da conta"
+        aria-label="Sair da conta"
+      >
+        <span className="material-symbols-outlined text-[22px]">logout</span>
+      </button>
     </header>
   );
 }

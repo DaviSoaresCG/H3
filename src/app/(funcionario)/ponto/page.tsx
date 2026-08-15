@@ -372,12 +372,12 @@ export default function PontoPage() {
           <span className="text-body-sm font-body-sm text-on-surface-variant">
             {currentDateFormatted || 'Hoje'}
           </span>
-          <span className="text-body-md font-body-md font-bold text-navy-deep">
+          <span className="text-body-md font-body-md font-bold text-on-surface">
             {user?.name ? `Olá, ${user.name.split(' ')[0]}` : 'Turno Operacional'}
           </span>
         </div>
 
-        <div className="flex items-center gap-1 bg-surface-card border border-border-subtle px-3 py-1.5 rounded-full shadow-soft">
+        <div className="flex items-center gap-1.5 bg-surface-container-lowest border border-surface-variant px-3 py-1.5 rounded-full shadow-xs">
           <span
             className={`material-symbols-outlined text-[16px] ${
               gpsStatus === 'OK' ? 'text-success-vibrant' : 'text-alert-warning'
@@ -387,7 +387,7 @@ export default function PontoPage() {
             {gpsStatus === 'OK' ? 'satellite_alt' : 'signal_disconnected'}
           </span>
           <span
-            className={`text-label-bold font-label-bold ${
+            className={`text-label-bold font-label-bold text-[11px] ${
               gpsStatus === 'OK' ? 'text-success-vibrant' : 'text-alert-warning'
             }`}
           >
