@@ -412,24 +412,24 @@ export default function PontoPage() {
         <button
           onClick={handleMainPunchClick}
           disabled={submittingPonto || loading}
-          className={`relative w-44 h-44 sm:w-48 sm:h-48 rounded-full text-on-secondary shadow-soft active:scale-95 active:translate-y-[1px] active:shadow-none transition-all duration-150 flex flex-col items-center justify-center border-4 border-surface-card disabled:opacity-50 ${
+          className={`relative w-48 h-48 rounded-full shadow-soft active:scale-95 active:translate-y-[1px] active:shadow-none transition-all duration-150 flex flex-col items-center justify-center border-4 border-surface-container-lowest disabled:opacity-50 ${
             currentStatus === 'EM_EXPEDIENTE'
-              ? 'bg-alert-warning hover:brightness-105'
+              ? 'bg-primary-container text-on-yellow-text hover:brightness-95'
               : currentStatus === 'EM_INTERVALO'
-              ? 'bg-navy-deep hover:brightness-110'
-              : 'bg-success-vibrant hover:brightness-105'
+              ? 'bg-secondary text-white hover:brightness-110'
+              : 'bg-primary-container text-on-yellow-text hover:brightness-95'
           }`}
           id="btn-punch"
         >
           {submittingPonto ? (
             <>
               <span className="material-symbols-outlined text-[44px] animate-spin mb-1">sync</span>
-              <span className="text-sm font-bold text-on-secondary">REGISTRANDO...</span>
+              <span className="text-sm font-bold">REGISTRANDO...</span>
             </>
           ) : (
             <>
               <span
-                className="material-symbols-outlined text-[44px] sm:text-[48px] mb-1"
+                className="material-symbols-outlined text-[48px] mb-1"
                 style={{ fontVariationSettings: "'FILL' 1" }}
               >
                 {currentStatus === 'FORA_DO_EXPEDIENTE'
@@ -438,7 +438,7 @@ export default function PontoPage() {
                   ? 'mic'
                   : 'restaurant'}
               </span>
-              <span className="text-headline-md font-headline-md font-bold text-on-secondary text-center px-2 leading-tight">
+              <span className="text-headline-md font-headline-md font-bold text-center px-2 leading-tight">
                 {currentStatus === 'FORA_DO_EXPEDIENTE'
                   ? 'BATER ENTRADA'
                   : currentStatus === 'EM_EXPEDIENTE'
@@ -465,15 +465,15 @@ export default function PontoPage() {
       {/* Bottom Area: Quick History & Audio Trigger */}
       <div className="w-full max-w-sm space-y-3">
         {/* Quick History Card */}
-        <div className="w-full bg-surface-card border border-border-subtle rounded-xl p-4 flex items-center gap-4 border-l-4 border-l-success-vibrant shadow-sm">
-          <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-success-vibrant">
-            <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+        <div className="w-full bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex items-center gap-4 border-l-4 border-l-primary-container shadow-xs">
+          <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface">
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               schedule
             </span>
           </div>
           <div className="flex flex-col flex-grow">
             <span className="text-body-sm font-body-sm text-on-surface-variant">Última batida</span>
-            <span className="text-body-md font-body-md font-bold text-navy-deep">
+            <span className="text-body-md font-body-md font-bold text-on-surface">
               {lastEntry
                 ? `${new Date(lastEntry.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} (${formatEntryTypeLabel(
                     lastEntry.entry_type
@@ -486,7 +486,7 @@ export default function PontoPage() {
 
         {/* Card de Técnicas & Adicionais Acumulados no Mês */}
         {monthlyBonus && (monthlyBonus.techniquesCentavos > 0 || monthlyBonus.travelCentavos > 0) && (
-          <div className="w-full bg-surface-card border border-border-subtle rounded-xl p-4 shadow-sm space-y-2 border-l-4 border-l-secondary">
+          <div className="w-full bg-surface-container-lowest border border-surface-variant rounded-xl p-4 shadow-xs space-y-2 border-l-4 border-l-secondary">
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                 Seus Adicionais no Mês
@@ -498,7 +498,7 @@ export default function PontoPage() {
             </div>
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-2xl font-black text-navy-deep">
+                <p className="text-2xl font-black text-on-surface">
                   {((monthlyBonus.techniquesCentavos + monthlyBonus.travelCentavos) / 100).toLocaleString('pt-BR', {
                     style: 'currency',
                     currency: 'BRL',
@@ -523,18 +523,18 @@ export default function PontoPage() {
               resetAudioState();
               setShowAudioModal(true);
             }}
-            className="w-full bg-surface-card border border-border-subtle rounded-xl p-4 flex items-center gap-4 shadow-sm active:scale-98 transition-transform hover:border-alert-warning"
+            className="w-full bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex items-center gap-4 shadow-xs active:scale-98 transition-transform hover:border-primary-container"
           >
             <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full bg-alert-warning opacity-20 pulse-animation"></div>
-              <div className="relative w-10 h-10 rounded-full bg-alert-warning flex items-center justify-center text-on-primary">
+              <div className="absolute inset-0 rounded-full bg-primary-container opacity-20 pulse-animation"></div>
+              <div className="relative w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-yellow-text">
                 <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                   mic
                 </span>
               </div>
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-body-md font-body-md font-bold text-navy-deep">Relato de Atividades</span>
+              <span className="text-body-md font-body-md font-bold text-on-surface">Relato de Atividades</span>
               <span className="text-body-sm font-body-sm text-on-surface-variant">Obrigatório no encerramento</span>
             </div>
             <span className="material-symbols-outlined text-outline ml-auto">chevron_right</span>

@@ -167,13 +167,13 @@ export default function FrotaPage() {
   const myVehicle = myActiveUsage ? vehicles.find((v) => v.id === myActiveUsage.vehicleId) : null;
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full animate-fadeIn">
       {/* Toast Feedback */}
       {feedback && (
         <div
-          className={`w-full p-3.5 rounded-lg border text-body-sm font-medium flex items-center gap-2.5 animate-fadeIn shadow-soft ${
+          className={`w-full p-3.5 rounded-xl border text-body-sm font-medium flex items-center gap-2.5 shadow-soft ${
             feedback.type === 'success'
-              ? 'bg-secondary-container/40 border-secondary text-on-secondary-container'
+              ? 'bg-secondary-container/50 border-secondary text-on-secondary-container'
               : 'bg-error-container/60 border-error text-on-error-container'
           }`}
         >
@@ -187,7 +187,7 @@ export default function FrotaPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-headline-md font-headline-md font-bold text-navy-deep">Frota Operacional</h1>
+          <h1 className="text-headline-md font-headline-md font-bold text-on-surface">Frota Operacional</h1>
           <p className="text-body-sm font-body-sm text-on-surface-variant">
             Retirada, devolução e apontamentos de manutenção
           </p>
@@ -197,22 +197,22 @@ export default function FrotaPage() {
       {/* SEÇÃO: VEÍCULO EM USO PELO USUÁRIO */}
       {myVehicle && (
         <section className="space-y-3">
-          <div className="bg-surface-card border border-border-subtle rounded-xl p-5 shadow-soft border-l-4 border-l-secondary relative overflow-hidden group">
-            <div className="absolute -right-8 -top-8 text-surface-container-highest opacity-40 transform rotate-12 transition-transform duration-500 group-hover:scale-110 pointer-events-none">
+          <div className="bg-surface-container-lowest border border-surface-variant rounded-2xl p-5 shadow-sm border-l-4 border-l-secondary relative overflow-hidden group">
+            <div className="absolute -right-8 -top-8 text-surface-container-highest opacity-30 transform rotate-12 transition-transform duration-500 group-hover:scale-110 pointer-events-none">
               <span className="material-symbols-outlined text-8xl">directions_car</span>
             </div>
 
             <div className="flex flex-col gap-4 relative z-10">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded text-label-bold font-label-bold uppercase">
+                  <span className="bg-secondary-container text-on-secondary-container px-2.5 py-0.5 rounded-full text-label-bold font-label-bold uppercase text-[10px]">
                     Em Sua Posse
                   </span>
                   <span className="text-on-surface-variant text-body-sm font-body-sm">
                     {new Date(myActiveUsage!.pickedUpAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <h2 className="text-headline-md font-headline-md font-bold text-navy-deep">{myVehicle.name}</h2>
+                <h2 className="text-headline-md font-headline-md font-bold text-on-surface">{myVehicle.name}</h2>
                 <p className="text-on-surface-variant text-body-md font-mono mt-0.5">{myVehicle.plate}</p>
               </div>
 
@@ -220,7 +220,7 @@ export default function FrotaPage() {
                 <button
                   onClick={() => setReturnVehicle(myVehicle)}
                   disabled={operatingVehicleId === myVehicle.id}
-                  className="flex-1 bg-navy-deep text-on-primary hover:bg-slate-serious active:scale-98 transition-all px-4 py-3 min-h-[48px] rounded-lg font-bold flex items-center justify-center gap-2 shadow-soft"
+                  className="flex-1 bg-navy-deep text-white hover:bg-slate-serious active:scale-98 transition-all px-4 py-3 min-h-[48px] rounded-xl font-bold flex items-center justify-center gap-2 shadow-soft"
                 >
                   <span className="material-symbols-outlined text-[20px]">keyboard_return</span>
                   Devolver Veículo
@@ -228,7 +228,7 @@ export default function FrotaPage() {
 
                 <button
                   onClick={() => setSelectedVehicle(myVehicle)}
-                  className="px-3 py-3 bg-surface-container hover:bg-surface-container-high text-navy-deep rounded-lg font-bold flex items-center justify-center shadow-sm"
+                  className="px-3 py-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl font-bold flex items-center justify-center shadow-xs"
                   title="Reportar problema"
                 >
                   <span className="material-symbols-outlined text-[20px]">build</span>
@@ -242,10 +242,10 @@ export default function FrotaPage() {
       {/* SEÇÃO: VEÍCULOS NA GARAGEM */}
       <section className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-headline-md font-headline-md font-bold text-navy-deep">
+          <h2 className="text-headline-md font-headline-md font-bold text-on-surface">
             Veículos na Garagem
           </h2>
-          <span className="text-on-surface-variant text-body-sm font-semibold bg-surface-container px-3 py-1 rounded-full">
+          <span className="text-on-surface-variant text-body-sm font-semibold bg-surface-container-lowest border border-surface-variant px-3 py-1 rounded-full text-xs">
             {vehicles.length} veículos
           </span>
         </div>
@@ -265,24 +265,24 @@ export default function FrotaPage() {
               return (
                 <div
                   key={v.id}
-                  className={`bg-surface-card border border-border-subtle rounded-xl p-4 flex flex-col gap-3 shadow-sm transition-all border-l-4 ${
+                  className={`bg-surface-container-lowest border border-surface-variant rounded-2xl p-4 flex flex-col gap-3 shadow-xs transition-all border-l-4 ${
                     isAvailable
-                      ? 'border-l-success-vibrant'
+                      ? 'border-l-primary-container'
                       : isMyCar
                       ? 'border-l-secondary'
-                      : 'border-l-alert-warning'
+                      : 'border-l-outline'
                   }`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span
-                          className={`px-2 py-0.5 rounded text-label-bold font-label-bold uppercase ${
+                          className={`px-2.5 py-0.5 rounded-full text-label-bold font-label-bold uppercase text-[10px] ${
                             isAvailable
-                              ? 'bg-secondary-container text-on-secondary-container'
+                              ? 'bg-primary-container text-on-yellow-text'
                               : isMyCar
                               ? 'bg-secondary text-white'
-                              : 'bg-surface-container-high text-on-surface-variant'
+                              : 'bg-surface-container text-on-surface-variant'
                           }`}
                         >
                           {isAvailable
@@ -294,13 +294,13 @@ export default function FrotaPage() {
                             : 'Em Rota'}
                         </span>
                         {hasMaintenance && (
-                          <span className="bg-error-container text-on-error-container px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1">
+                          <span className="bg-error-container text-on-error-container px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1">
                             <span className="material-symbols-outlined text-[12px]">build</span>
                             Aviso
                           </span>
                         )}
                       </div>
-                      <h3 className="text-body-lg font-body-lg font-bold text-navy-deep">{v.name}</h3>
+                      <h3 className="text-body-lg font-body-lg font-bold text-on-surface">{v.name}</h3>
                       <p className="text-on-surface-variant text-body-sm font-mono">{v.plate}</p>
                     </div>
 
@@ -309,12 +309,12 @@ export default function FrotaPage() {
                     </span>
                   </div>
 
-                  <div className="pt-3 border-t border-border-subtle flex gap-2">
+                  <div className="pt-3 border-t border-surface-variant flex gap-2">
                     {isAvailable ? (
                       <button
                         onClick={() => setPickupVehicle(v)}
                         disabled={operatingVehicleId === v.id}
-                        className="flex-1 bg-surface-container-lowest hover:bg-surface-container border border-border-subtle text-navy-deep active:scale-98 transition-all px-4 py-2.5 min-h-[44px] rounded-lg font-bold flex items-center justify-center gap-2 shadow-sm"
+                        className="flex-1 bg-primary-container hover:brightness-95 text-on-yellow-text active:scale-98 transition-all px-4 py-2.5 min-h-[44px] rounded-xl font-bold flex items-center justify-center gap-2 shadow-xs"
                       >
                         <span className="material-symbols-outlined text-[18px]">key</span>
                         Retirar Carro
@@ -322,7 +322,7 @@ export default function FrotaPage() {
                     ) : isMyCar ? (
                       <button
                         onClick={() => setReturnVehicle(v)}
-                        className="flex-1 bg-navy-deep text-white hover:bg-slate-serious active:scale-98 transition-all px-4 py-2.5 min-h-[44px] rounded-lg font-bold flex items-center justify-center gap-2 shadow-sm"
+                        className="flex-1 bg-navy-deep text-white hover:bg-slate-serious active:scale-98 transition-all px-4 py-2.5 min-h-[44px] rounded-xl font-bold flex items-center justify-center gap-2 shadow-xs"
                       >
                         <span className="material-symbols-outlined text-[18px]">keyboard_return</span>
                         Devolver à Garagem
@@ -330,7 +330,7 @@ export default function FrotaPage() {
                     ) : (
                       <button
                         disabled
-                        className="flex-1 bg-surface-container text-outline px-4 py-2.5 min-h-[44px] rounded-lg font-semibold flex items-center justify-center gap-2 cursor-not-allowed"
+                        className="flex-1 bg-surface-container text-outline px-4 py-2.5 min-h-[44px] rounded-xl font-semibold flex items-center justify-center gap-2 cursor-not-allowed text-xs"
                       >
                         <span className="material-symbols-outlined text-[18px]">block</span>
                         Indisponível no Momento
@@ -339,7 +339,7 @@ export default function FrotaPage() {
 
                     <button
                       onClick={() => setSelectedVehicle(v)}
-                      className="px-3 py-2 bg-surface-container hover:bg-surface-container-high text-navy-deep rounded-lg font-bold flex items-center justify-center"
+                      className="px-3 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl font-bold flex items-center justify-center"
                       title="Apontar observação"
                     >
                       <span className="material-symbols-outlined text-[18px]">report_problem</span>
@@ -354,55 +354,53 @@ export default function FrotaPage() {
 
       {/* MODAL DE RETIRADA */}
       {pickupVehicle && (
-        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-          <div className="bg-surface-card w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 border border-border-subtle shadow-2xl space-y-4">
-            <div className="flex justify-between items-start pb-2 border-b border-border-subtle">
-              <div>
-                <h3 className="text-headline-md font-bold text-navy-deep">Retirar {pickupVehicle.name}</h3>
-                <p className="text-body-sm text-on-surface-variant font-mono">{pickupVehicle.plate}</p>
-              </div>
-              <button onClick={() => setPickupVehicle(null)} className="text-on-surface-variant hover:text-navy-deep">
+        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest rounded-2xl border border-surface-variant max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-surface-variant pb-3">
+              <h3 className="text-headline-md font-bold text-on-surface">Retirar Veículo</h3>
+              <button onClick={() => setPickupVehicle(null)} className="text-on-surface-variant hover:text-on-surface">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="bg-surface-container p-3 rounded-xl">
+              <p className="font-bold text-on-surface">{pickupVehicle.name}</p>
+              <p className="text-body-sm text-on-surface-variant font-mono">{pickupVehicle.plate}</p>
+            </div>
+
+            <div className="space-y-3 text-body-sm">
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Quilometragem Inicial (KM)
-                </label>
+                <label className="block font-semibold text-on-surface mb-1">Km Atual (Hodômetro)</label>
                 <input
                   type="number"
+                  placeholder="Ex: 45200"
                   value={pickupKm}
                   onChange={(e) => setPickupKm(e.target.value)}
-                  placeholder="Ex: 45230"
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full h-11 px-3 rounded-lg border border-surface-variant bg-surface-container-lowest text-on-surface focus:border-navy-deep outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Nível de Combustível
-                </label>
+                <label className="block font-semibold text-on-surface mb-1">Nível de Combustível</label>
                 <select
                   value={pickupFuel}
                   onChange={(e) => setPickupFuel(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full h-11 px-3 rounded-lg border border-surface-variant bg-surface-container-lowest text-on-surface focus:border-navy-deep outline-none"
                 >
-                  <option value="100%">Tanque Cheio (100%)</option>
-                  <option value="75%">3/4 Tanque (75%)</option>
-                  <option value="50%">1/2 Tanque (50%)</option>
-                  <option value="25%">1/4 Tanque (25%)</option>
-                  <option value="RESERVA">Reserva</option>
+                  <option value="100%">100% (Cheio)</option>
+                  <option value="75%">75% (3/4)</option>
+                  <option value="50%">50% (Meio)</option>
+                  <option value="25%">25% (1/4)</option>
+                  <option value="Reserva">Reserva</option>
                 </select>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-border-subtle flex gap-3">
+            <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setPickupVehicle(null)}
-                className="flex-1 py-3 bg-surface-container hover:bg-surface-container-high text-navy-deep font-semibold rounded-lg"
+                className="flex-1 py-2.5 border border-surface-variant rounded-xl font-bold text-on-surface-variant hover:bg-surface-container"
               >
                 Cancelar
               </button>
@@ -410,7 +408,7 @@ export default function FrotaPage() {
                 type="button"
                 onClick={handlePickupConfirm}
                 disabled={operatingVehicleId === pickupVehicle.id}
-                className="flex-1 py-3 bg-secondary text-white font-bold rounded-lg shadow-soft active:translate-y-px"
+                className="flex-1 py-2.5 bg-primary-container text-on-yellow-text hover:brightness-95 rounded-xl font-bold shadow-soft"
               >
                 Confirmar Saída
               </button>
@@ -421,51 +419,49 @@ export default function FrotaPage() {
 
       {/* MODAL DE DEVOLUÇÃO */}
       {returnVehicle && (
-        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-          <div className="bg-surface-card w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 border border-border-subtle shadow-2xl space-y-4">
-            <div className="flex justify-between items-start pb-2 border-b border-border-subtle">
-              <div>
-                <h3 className="text-headline-md font-bold text-navy-deep">Devolver {returnVehicle.name}</h3>
-                <p className="text-body-sm text-on-surface-variant font-mono">{returnVehicle.plate}</p>
-              </div>
-              <button onClick={() => setReturnVehicle(null)} className="text-on-surface-variant hover:text-navy-deep">
+        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest rounded-2xl border border-surface-variant max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-surface-variant pb-3">
+              <h3 className="text-headline-md font-bold text-on-surface">Devolver à Garagem</h3>
+              <button onClick={() => setReturnVehicle(null)} className="text-on-surface-variant hover:text-on-surface">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="bg-surface-container p-3 rounded-xl">
+              <p className="font-bold text-on-surface">{returnVehicle.name}</p>
+              <p className="text-body-sm text-on-surface-variant font-mono">{returnVehicle.plate}</p>
+            </div>
+
+            <div className="space-y-3 text-body-sm">
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Quilometragem Final (KM)
-                </label>
+                <label className="block font-semibold text-on-surface mb-1">Km Final (Opcional)</label>
                 <input
                   type="number"
+                  placeholder="Ex: 45350"
                   value={returnKm}
                   onChange={(e) => setReturnKm(e.target.value)}
-                  placeholder="Ex: 45310"
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full h-11 px-3 rounded-lg border border-surface-variant bg-surface-container-lowest text-on-surface focus:border-navy-deep outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Observações ou Avarias (Opcional)
-                </label>
+                <label className="block font-semibold text-on-surface mb-1">Observações da Devolução</label>
                 <textarea
+                  rows={2}
+                  placeholder="Ex: Carro limpo, abastecido, estacionado na vaga 2..."
                   value={returnNotes}
                   onChange={(e) => setReturnNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Ex: Veículo abastecido, pneu dianteiro calibrado..."
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-lowest text-on-surface focus:border-navy-deep outline-none text-xs"
                 />
               </div>
             </div>
 
-            <div className="pt-3 border-t border-border-subtle flex gap-3">
+            <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setReturnVehicle(null)}
-                className="flex-1 py-3 bg-surface-container hover:bg-surface-container-high text-navy-deep font-semibold rounded-lg"
+                className="flex-1 py-2.5 border border-surface-variant rounded-xl font-bold text-on-surface-variant hover:bg-surface-container"
               >
                 Cancelar
               </button>
@@ -473,7 +469,7 @@ export default function FrotaPage() {
                 type="button"
                 onClick={handleReturnConfirm}
                 disabled={operatingVehicleId === returnVehicle.id}
-                className="flex-1 py-3 bg-navy-deep text-white font-bold rounded-lg shadow-soft active:translate-y-px"
+                className="flex-1 py-2.5 bg-navy-deep text-white hover:bg-slate-serious rounded-xl font-bold shadow-soft"
               >
                 Confirmar Devolução
               </button>
@@ -482,66 +478,64 @@ export default function FrotaPage() {
         </div>
       )}
 
-      {/* MODAL DE APONTAMENTO DE MANUTENÇÃO */}
+      {/* MODAL DE OBSERVAÇÃO / APONTAMENTO DE AVARIA */}
       {selectedVehicle && (
-        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-          <div className="bg-surface-card w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 border border-border-subtle shadow-2xl space-y-4">
-            <div className="flex justify-between items-start pb-2 border-b border-border-subtle">
-              <div>
-                <h3 className="text-headline-md font-bold text-navy-deep">Apontar Ocorrência</h3>
-                <p className="text-body-sm text-on-surface-variant font-mono">{selectedVehicle.name} ({selectedVehicle.plate})</p>
-              </div>
-              <button onClick={() => setSelectedVehicle(null)} className="text-on-surface-variant hover:text-navy-deep">
+        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-container-lowest rounded-2xl border border-surface-variant max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-surface-variant pb-3">
+              <h3 className="text-headline-md font-bold text-on-surface">Apontamento de Manutenção</h3>
+              <button onClick={() => setSelectedVehicle(null)} className="text-on-surface-variant hover:text-on-surface">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleSaveNote} className="space-y-3">
+            <div className="bg-surface-container p-3 rounded-xl">
+              <p className="font-bold text-on-surface">{selectedVehicle.name}</p>
+              <p className="text-body-sm text-on-surface-variant font-mono">{selectedVehicle.plate}</p>
+            </div>
+
+            <form onSubmit={handleSaveNote} className="space-y-3 text-body-sm">
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Categoria da Ocorrência
-                </label>
+                <label className="block font-semibold text-on-surface mb-1">Categoria *</label>
                 <select
                   value={noteCategory}
                   onChange={(e) => setNoteCategory(e.target.value as VehicleNoteCategory)}
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full h-11 px-3 rounded-lg border border-surface-variant bg-surface-container-lowest text-on-surface focus:border-navy-deep outline-none"
                 >
-                  <option value="GENERAL">Geral / Diversos</option>
-                  <option value="OIL">Troca de Óleo / Filtro</option>
-                  <option value="BRAKES">Freios / Pastilhas</option>
-                  <option value="TIRES">Pneus / Alinhamento</option>
-                  <option value="LIGHTS">Faróis / Lanternas</option>
+                  <option value="GENERAL">{getCategoryDisplayName('GENERAL')}</option>
+                  <option value="OIL">{getCategoryDisplayName('OIL')}</option>
+                  <option value="BRAKES">{getCategoryDisplayName('BRAKES')}</option>
+                  <option value="TIRES">{getCategoryDisplayName('TIRES')}</option>
+                  <option value="LIGHTS">{getCategoryDisplayName('LIGHTS')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
-                  Descrição do Problema *
-                </label>
+                <label className="block font-semibold text-on-surface mb-1">Descrição do Problema / Nota *</label>
                 <textarea
+                  rows={3}
+                  placeholder="Ex: Pneu dianteiro direito com calibragem baixa ou barulho na embreagem..."
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
-                  rows={3}
-                  placeholder="Descreva o barulho, defeito ou revisão necessária..."
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full p-3 rounded-lg border border-surface-variant bg-surface-container-lowest text-on-surface focus:border-navy-deep outline-none text-xs"
                   required
                 />
               </div>
 
-              <div className="pt-3 border-t border-border-subtle flex gap-3">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setSelectedVehicle(null)}
-                  className="flex-1 py-3 bg-surface-container hover:bg-surface-container-high text-navy-deep font-semibold rounded-lg"
+                  className="flex-1 py-2.5 border border-surface-variant rounded-xl font-bold text-on-surface-variant hover:bg-surface-container"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submittingNote || !noteText.trim()}
-                  className="flex-1 py-3 bg-alert-warning hover:brightness-105 text-white font-bold rounded-lg shadow-soft active:translate-y-px disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-navy-deep text-white hover:bg-slate-serious rounded-xl font-bold shadow-soft disabled:opacity-50"
                 >
-                  Salvar Alerta
+                  {submittingNote ? 'Salvando...' : 'Registrar'}
                 </button>
               </div>
             </form>

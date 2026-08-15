@@ -44,10 +44,10 @@ export default function ViagensFuncionarioPage() {
   }, 0);
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full animate-fadeIn">
       {/* Header */}
       <div>
-        <h1 className="text-headline-md font-headline-md font-bold text-navy-deep">
+        <h1 className="text-headline-md font-headline-md font-bold text-on-surface">
           Minhas Viagens & Diárias
         </h1>
         <p className="text-body-sm font-body-sm text-on-surface-variant">
@@ -56,12 +56,12 @@ export default function ViagensFuncionarioPage() {
       </div>
 
       {/* Card Resumo de Diárias */}
-      <div className="bg-surface-card border border-border-subtle rounded-xl p-5 shadow-soft border-l-4 border-l-secondary flex items-center justify-between">
+      <div className="bg-surface-container-lowest border border-surface-variant rounded-2xl p-5 shadow-sm border-l-4 border-l-secondary flex items-center justify-between">
         <div>
-          <span className="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold">
+          <span className="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold text-[11px]">
             Total em Diárias de Viagem
           </span>
-          <p className="text-2xl font-bold text-navy-deep mt-0.5">
+          <p className="text-2xl font-bold text-on-surface mt-0.5">
             {(totalAllowanceAcumulada / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </p>
         </div>
@@ -73,12 +73,12 @@ export default function ViagensFuncionarioPage() {
       </div>
 
       {/* Informativo Geofence */}
-      <div className="p-4 bg-surface-container-low border border-border-subtle rounded-xl flex items-start gap-3 text-body-sm">
+      <div className="p-4 bg-surface-container border border-surface-variant rounded-2xl flex items-start gap-3 text-body-sm">
         <span className="material-symbols-outlined text-secondary text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
           flight_takeoff
         </span>
         <div className="space-y-0.5">
-          <p className="font-bold text-navy-deep">Isenção de Geofence Ativa</p>
+          <p className="font-bold text-on-surface">Isenção de Geofence Ativa</p>
           <p className="text-on-surface-variant text-xs leading-relaxed">
             Durante viagens oficiais ativas, você pode bater ponto em qualquer cidade sem gerar alerta de fora da sede.
           </p>
@@ -87,7 +87,7 @@ export default function ViagensFuncionarioPage() {
 
       {/* Lista de Viagens */}
       <section className="space-y-3">
-        <h2 className="text-headline-md font-headline-md font-bold text-navy-deep">
+        <h2 className="text-headline-md font-headline-md font-bold text-on-surface">
           Minhas Escalas de Viagem
         </h2>
 
@@ -96,9 +96,9 @@ export default function ViagensFuncionarioPage() {
             Carregando viagens...
           </div>
         ) : myTrips.length === 0 ? (
-          <div className="bg-surface-card border border-border-subtle rounded-xl p-8 text-center space-y-2 shadow-soft">
+          <div className="bg-surface-container-lowest border border-surface-variant rounded-2xl p-8 text-center space-y-2 shadow-sm">
             <span className="material-symbols-outlined text-4xl text-slate-serious">luggage</span>
-            <p className="text-navy-deep font-bold text-body-md">Nenhuma viagem agendada no momento.</p>
+            <p className="text-on-surface font-bold text-body-md">Nenhuma viagem agendada no momento.</p>
             <p className="text-on-surface-variant text-body-sm">
               Quando a gestão escalar você para uma viagem externa, ela aparecerá aqui com as diárias calculadas.
             </p>
@@ -118,34 +118,34 @@ export default function ViagensFuncionarioPage() {
               return (
                 <div
                   key={trip.id}
-                  className={`bg-surface-card border border-border-subtle rounded-xl p-5 shadow-soft space-y-4 border-l-4 ${
+                  className={`bg-surface-container-lowest border border-surface-variant rounded-2xl p-5 shadow-sm space-y-4 border-l-4 ${
                     isActive
                       ? 'border-l-secondary'
                       : isCompleted
                       ? 'border-l-slate-serious'
                       : isCancelled
                       ? 'border-l-error opacity-75'
-                      : 'border-l-navy-deep'
+                      : 'border-l-primary-container'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3 border-b border-border-subtle pb-3">
+                  <div className="flex items-start justify-between gap-3 border-b border-surface-variant pb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span
-                          className={`px-2 py-0.5 rounded text-label-bold font-label-bold uppercase ${
+                          className={`px-2.5 py-0.5 rounded-full text-label-bold font-label-bold uppercase text-[10px] ${
                             isActive
                               ? 'bg-secondary-container text-on-secondary-container'
                               : isCompleted
-                              ? 'bg-surface-container text-outline'
+                              ? 'bg-surface-container text-on-surface-variant'
                               : isCancelled
                               ? 'bg-error-container text-on-error-container'
-                              : 'bg-primary-container text-white'
+                              : 'bg-primary-container text-on-yellow-text'
                           }`}
                         >
                           {isActive ? 'Em Andamento' : isCompleted ? 'Concluída' : isCancelled ? 'Cancelada' : 'Prevista'}
                         </span>
                       </div>
-                      <h3 className="font-bold text-navy-deep text-body-lg">{trip.title}</h3>
+                      <h3 className="font-bold text-on-surface text-body-lg">{trip.title}</h3>
                       <p className="text-body-sm text-secondary font-semibold flex items-center gap-1 mt-0.5">
                         <span className="material-symbols-outlined text-[16px]">location_on</span>
                         {trip.destinationCity}
@@ -153,8 +153,8 @@ export default function ViagensFuncionarioPage() {
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[11px] font-bold text-on-surface-variant uppercase">Sua Diária</span>
-                      <p className="font-bold text-navy-deep text-body-lg">
+                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Sua Diária</span>
+                      <p className="font-bold text-on-surface text-body-lg">
                         {(allowanceAmountCentavos / 100).toLocaleString('pt-BR', {
                           style: 'currency',
                           currency: 'BRL',
@@ -164,16 +164,16 @@ export default function ViagensFuncionarioPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-body-sm">
-                    <div className="bg-surface-container-low p-3 rounded-lg">
+                    <div className="bg-surface-container p-3 rounded-xl">
                       <span className="text-on-surface-variant text-xs">Período ({trip.totalDays} dias)</span>
-                      <p className="font-semibold text-navy-deep mt-0.5">
+                      <p className="font-semibold text-on-surface mt-0.5">
                         {formatDateBR(trip.startDate)} a {formatDateBR(trip.endDate)}
                       </p>
                     </div>
 
-                    <div className="bg-surface-container-low p-3 rounded-lg">
+                    <div className="bg-surface-container p-3 rounded-xl">
                       <span className="text-on-surface-variant text-xs">Equipe Escalada</span>
-                      <p className="font-semibold text-navy-deep mt-0.5">
+                      <p className="font-semibold text-on-surface mt-0.5">
                         {trip.participants?.length || 1} colaborador(es)
                       </p>
                     </div>
