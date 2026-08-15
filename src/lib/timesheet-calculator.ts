@@ -77,8 +77,29 @@ export function isSundayDate(dateInput: string): boolean {
 }
 
 /**
+ * Retorna true se a data informada (YYYY-MM-DD ou ISO) for um sábado.
+ */
+export function isSaturdayDate(dateInput: string): boolean {
+  const dateStr = dateInput.substring(0, 10);
+  const dateObj = new Date(dateStr + 'T00:00:00');
+  return dateObj.getDay() === 6; // 6 = Sábado
+}
+
+/**
+ * Retorna o limite de horas normais diárias com base na escala CLT 44h semanais:
+ * - Segunda a Sexta: 8.0 horas normais/dia (40h)
+ * - Sábado: 4.0 horas normais/dia (4h) -> Total 44h semanais
+ * - Domingo: 0.0 horas normais (100% computado como horas extras/adicional de domingo)
+ */
+export function getStandardDailyWorkLimit(dateInput: string): number {
+  if (isSundayDate(dateInput)) return 0.0;
+  if (isSaturdayDate(dateInput)) return 4.0;
+  return 8.0;
+}
+
+/**
  * Consolida as horas trabalhadas agrupando por dia e totaliza bônus/adicionais para o fechamento mensal.
- * Calcula horas normais e horas extras com base na jornada padrão diária de 8 horas.
+ * Aplica a escala padrão CLT de 44h semanais (Seg-Sex: 8h normais, Sáb: 4h normais).
  */
 export function calculateTimesheetSummary(
   params: TimesheetSummaryParams
@@ -168,13 +189,13 @@ export function calculateTimesheetSummary(
         sundayHolidayHoursAccum += dayHours;
         sundayDatesWorked.add(dayKey);
       } else {
-        // Jornada padrão: até 8 horas normais por dia
-        const standardDailyLimit = 8.0;
-        if (dayHours <= standardDailyLimit) {
+        // Aplica o limite diário da escala CLT (Seg-Sex: 8h, Sáb: 4h)
+        const dailyLimit = getStandardDailyWorkLimit(dayKey);
+        if (dayHours <= dailyLimit) {
           regularHoursAccum += dayHours;
         } else {
-          regularHoursAccum += standardDailyLimit;
-          overtimeHoursAccum += (dayHours - standardDailyLimit);
+          regularHoursAccum += dailyLimit;
+          overtimeHoursAccum += (dayHours - dailyLimit);
         }
       }
     }
