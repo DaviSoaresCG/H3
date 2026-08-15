@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    --background: #f7f9fb;
-    --foreground: #191c1e;
+    --background: #fff9e7;
+    --foreground: #1e1c10;
   }
 
   body {
-    background-color: #f7f9fb;
-    color: #191c1e;
+    background-color: #fff9e7;
+    color: #1e1c10;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 }
@@ -62,7 +62,7 @@
 /* Audio Waveform Animations */
 .waveform-bar {
   width: 4px;
-  background-color: #64748B;
+  background-color: #0F172A;
   border-radius: 2px;
   animation: pulse-wave 1.5s infinite ease-in-out;
 }
@@ -87,12 +87,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f2f4f6;
+  background: #f9f4df;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c6c6cd;
+  background: #cdc7aa;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #76777d;
+  background: #7c785f;
 }

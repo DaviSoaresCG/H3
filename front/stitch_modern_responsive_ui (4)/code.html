@@ -1,0 +1,303 @@
+<!DOCTYPE html><html lang="pt-BR" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>EventPoint - Dashboard do Funcionário</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "surface": "#fff9e7",
+                "tertiary-fixed-dim": "#00ddda",
+                "error": "#ba1a1a",
+                "surface-container-highest": "#e8e2cf",
+                "surface-tint": "#695f00",
+                "background": "#fff9e7",
+                "outline": "#7c785f",
+                "alert-error": "#EF4444",
+                "surface-container-low": "#f9f4df",
+                "tertiary-fixed": "#45faf7",
+                "on-tertiary-fixed-variant": "#00504f",
+                "surface-container-lowest": "#ffffff",
+                "on-tertiary-container": "#007472",
+                "error-container": "#ffdad6",
+                "primary": "#695f00",
+                "outline-variant": "#cdc7aa",
+                "on-primary-fixed-variant": "#4f4800",
+                "on-secondary": "#ffffff",
+                "inverse-primary": "#dbc900",
+                "on-surface": "#1e1c10",
+                "surface-bright": "#fff9e7",
+                "surface-container-high": "#eee8d4",
+                "neutral-surface": "#F8F9FA",
+                "on-tertiary": "#ffffff",
+                "on-secondary-fixed": "#0e0c5c",
+                "on-tertiary-fixed": "#00201f",
+                "tertiary": "#006a68",
+                "primary-fixed-dim": "#dbc900",
+                "on-primary-container": "#736900",
+                "on-primary": "#ffffff",
+                "secondary-container": "#aaacfe",
+                "success-vibrant": "#22C55E",
+                "on-error": "#ffffff",
+                "secondary": "#5556a2",
+                "surface-container": "#f4eeda",
+                "primary-fixed": "#fae500",
+                "on-secondary-fixed-variant": "#3d3e88",
+                "on-primary-fixed": "#1f1c00",
+                "surface-variant": "#e8e2cf",
+                "on-yellow-text": "#0F172A",
+                "on-background": "#1e1c10",
+                "surface-dim": "#dfdac6",
+                "secondary-fixed": "#e1e0ff",
+                "secondary-fixed-dim": "#c1c1ff",
+                "inverse-on-surface": "#f7f1dc",
+                "primary-container": "#ffea00",
+                "on-surface-variant": "#4b4731",
+                "on-error-container": "#93000a",
+                "inverse-surface": "#333123",
+                "on-secondary-container": "#3b3d87",
+                "tertiary-container": "#4dfffc"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "container-max-width": "1280px",
+                "gutter": "16px",
+                "base-unit": "4px",
+                "margin-mobile": "16px",
+                "margin-desktop": "32px"
+        },
+        "fontFamily": {
+                "headline-md": [
+                        "Inter"
+                ],
+                "label-bold": [
+                        "Inter"
+                ],
+                "body-lg": [
+                        "Inter"
+                ],
+                "body-md": [
+                        "Inter"
+                ],
+                "label-caps": [
+                        "Inter"
+                ],
+                "body-sm": [
+                        "Inter"
+                ],
+                "headline-lg-mobile": [
+                        "Inter"
+                ],
+                "headline-lg": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "headline-md": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "label-bold": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-lg": [
+                        "18px",
+                        {
+                                "lineHeight": "26px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-md": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-caps": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.1em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-sm": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        .pulse-animation {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            80% { transform: scale(1.5); opacity: 0; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen">
+<!-- TopAppBar (Small) -->
+<header class="bg-surface border-b border-surface-variant flex justify-between items-center w-full px-4 h-16 fixed top-0 w-full z-50">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-variant flex items-center justify-center">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A detailed headshot portrait of a field worker in uniform, shot in bright daylight with a clear blue sky background, conveying a sense of readiness and professionalism. The lighting is natural and flattering, emphasizing a modern operational aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCABFxCMJlRQHhcD5CJkFVCX1t_0lX-ytX1OsOhzraxzA9jvfxwTAk1DSzzvrKcd-bky6pFiBmyFwP9c5u6yqiYO1sN8KTviWMeDURGDAYgQyMU8miccKvk6N4Hwzd8hwmGeHkDY45Xne6Lt2-b-BsbQYeCAk2cksm5FeIrBZsW1a9QyjQL7fU-1i_eeuNFeLV3x3Tbv0yKDPkdi6xCMUKTU684io_dPqauvBtHANHO3ydcldN7Agnm">
+</div>
+<span class="text-headline-md font-headline-md font-bold text-on-surface">Carlos Miguel</span>
+</div>
+<div class="text-on-surface hover:bg-surface-container transition-colors rounded-full p-2 flex items-center justify-center">
+<span class="material-symbols-outlined">logout</span>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-[80px] pb-[96px] px-margin-mobile flex flex-col items-center min-h-screen">
+<!-- Status Header (Date & GPS) -->
+<div class="w-full flex justify-between items-center mb-8">
+<div class="flex flex-col">
+<span class="text-body-sm font-body-sm text-on-surface-variant" id="current-date">Sexta-feira, 24 de Nov</span>
+
+</div>
+<div class="flex items-center gap-1 bg-surface-container-lowest border border-surface-variant px-3 py-1.5 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-success-vibrant" style="font-variation-settings: 'FILL' 1;">satellite_alt</span>
+<span class="text-label-bold font-label-bold text-success-vibrant">GPS ATIVO</span>
+</div>
+</div>
+<!-- Clock & Main Action -->
+<div class="flex flex-col items-center justify-center w-full flex-grow max-w-sm mx-auto">
+<!-- Digital Clock -->
+<div class="mb-10 text-center">
+<div class="text-headline-lg font-headline-lg text-on-surface tracking-tight font-black" id="digital-clock" style="font-size: 3.5rem; line-height: 1;">13:43</div>
+<div class="text-body-md font-body-md text-on-surface-variant mt-2" id="clock-seconds">59s</div>
+</div>
+<!-- Main Punch Button -->
+<button class="relative w-48 h-48 rounded-full bg-primary-container text-on-yellow-text shadow-[0px_4px_6px_-1px_rgba(15,23,42,0.1),0px_2px_4px_-2px_rgba(15,23,42,0.1)] active:scale-95 active:translate-y-[1px] active:shadow-none transition-all duration-150 flex flex-col items-center justify-center border-4 border-surface-container-lowest" id="btn-punch">
+<span class="material-symbols-outlined text-[48px] mb-2">touch_app</span>
+<span class="text-headline-md font-headline-md font-bold text-on-yellow-text">BATER PONTO</span>
+</button>
+</div>
+<!-- Quick History -->
+<div class="w-full max-w-sm mt-12 bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex items-center gap-4 border-l-4 border-l-primary-container shadow-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined">login</span>
+</div>
+<div class="flex flex-col flex-grow">
+<span class="text-body-sm font-body-sm text-on-surface-variant">Última batida</span>
+<span class="text-body-md font-body-md font-bold text-on-surface">08:00 (Entrada)</span>
+</div>
+<span class="text-body-sm font-body-sm text-outline">Hoje</span>
+</div>
+<!-- Conditional Audio Report Action (Simulating state where it's available) -->
+<button class="w-full max-w-sm mt-4 bg-surface-container-lowest border border-surface-variant rounded-xl p-4 flex items-center gap-4 shadow-sm active:scale-98 transition-transform">
+<div class="relative w-10 h-10 flex items-center justify-center">
+<div class="absolute inset-0 rounded-full bg-primary-container opacity-20 pulse-animation"></div>
+<div class="relative w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-yellow-text">
+<span class="material-symbols-outlined">mic</span>
+</div>
+</div>
+<div class="flex flex-col text-left">
+<span class="text-body-md font-body-md font-bold text-on-surface">Registrar Relato</span>
+<span class="text-body-sm font-body-sm text-on-surface-variant">Necessário para encerramento</span>
+</div>
+<span class="material-symbols-outlined text-outline ml-auto">chevron_right</span>
+</button>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 bg-surface border-t border-surface-variant shadow-lg rounded-t-xl">
+<!-- Active Tab: Ponto -->
+<div class="flex flex-col items-center justify-center text-on-yellow-text rounded-full px-4 py-1 scale-90 duration-200 bg-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">timer</span>
+<span class="text-label-bold font-label-bold mt-1">Ponto</span>
+</div>
+<!-- Inactive Tab: Frota -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined">directions_car</span>
+<span class="text-label-bold font-label-bold mt-1">Frota</span>
+</div>
+<!-- Inactive Tab: Viagens -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined">route</span>
+<span class="text-label-bold font-label-bold mt-1">Viagens</span>
+</div>
+<!-- Inactive Tab: Perfil -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined">construction</span>
+<span class="text-label-bold font-label-bold mt-1">Técnicas</span>
+</div><div class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1 hover:bg-surface-container-low transition-colors cursor-pointer">
+<span class="material-symbols-outlined">person</span>
+<span class="text-label-bold font-label-bold mt-1">Perfil</span>
+</div>
+</nav>
+<!-- Interaction Script -->
+<script>
+        function updateClock() {
+            const now = new Date();
+            
+            // Format time
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            document.getElementById('digital-clock').textContent = `${hours}:${minutes}`;
+            document.getElementById('clock-seconds').textContent = `${seconds}s`;
+
+            // Format date loosely for demo (static in HTML for reliable visual structure, but could be dynamic here)
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock(); // Initial call
+        
+        // Simple punch interaction feedback
+        document.getElementById('btn-punch').addEventListener('click', function() {
+            // Visual feedback handled by active: classes in Tailwind
+            console.log('Punch recorded via UI simulation');
+        });
+    </script>
+
+
+</body></html>

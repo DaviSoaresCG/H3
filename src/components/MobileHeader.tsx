@@ -4,9 +4,10 @@ import { useRouter } from 'next/navigation';
 
 interface MobileHeaderProps {
   gpsStatus?: 'OK' | 'UNAVAILABLE';
+  userName?: string;
 }
 
-export function MobileHeader({ gpsStatus = 'OK' }: MobileHeaderProps) {
+export function MobileHeader({ gpsStatus = 'OK', userName }: MobileHeaderProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -21,19 +22,23 @@ export function MobileHeader({ gpsStatus = 'OK' }: MobileHeaderProps) {
   };
 
   const isGpsOk = gpsStatus === 'OK';
+  const displayName = userName || 'EventPoint';
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'E';
 
   return (
-    <header className="bg-surface border-b border-border-subtle flex justify-between items-center w-full px-4 h-16 fixed top-0 left-0 right-0 z-40 md:hidden shadow-sm">
+    <header className="bg-surface border-b border-surface-variant flex justify-between items-center w-full px-4 h-16 fixed top-0 left-0 right-0 z-40 md:hidden shadow-xs">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-navy-deep text-white flex items-center justify-center font-black text-sm shadow-sm">
-          EP
+        <div className="w-8 h-8 rounded-full bg-navy-deep text-primary-container flex items-center justify-center font-black text-sm shadow-xs border border-surface-variant">
+          {initial}
         </div>
-        <span className="text-headline-md font-headline-md font-bold text-primary">EventPoint</span>
+        <span className="text-headline-md font-headline-md font-bold text-on-surface truncate max-w-[170px]">
+          {displayName}
+        </span>
       </div>
 
       <div className="flex items-center gap-2">
         <div
-          className={`flex items-center gap-1 bg-surface-card border border-border-subtle px-2.5 py-1 rounded-full shadow-sm text-[11px] font-bold ${
+          className={`flex items-center gap-1 bg-surface-container-lowest border border-surface-variant px-2.5 py-1 rounded-full shadow-xs text-[11px] font-bold ${
             isGpsOk ? 'text-success-vibrant' : 'text-alert-warning'
           }`}
         >

@@ -24,6 +24,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
 export function generateToken(payload: { userId: string; cpf: string; name: string; role: UserRole }): string {
   return jwt.sign(payload, ENV.JWT_SECRET, { expiresIn: '7d' });
 }
+export const signToken = generateToken;
 
 /**
  * Valida um token JWT no ambiente Node (usando jsonwebtoken)
