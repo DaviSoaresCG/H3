@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { query, queryOne } from '@/lib/db';
-import { calculateTimesheetSummary } from '@/lib/timesheet-calculator';
+import { calculateTimesheetSummary, calculateDailyBreakdown } from '@/lib/timesheet-calculator';
 import { StoredTimeEntry, User, SundayHolidayRule } from '@/types';
 
 interface GlobalWithMemory {
@@ -221,12 +221,15 @@ export async function GET(request: Request) {
         sundayRule,
       });
 
+      const dailyBreakdown = calculateDailyBreakdown(entries || []);
+
       return NextResponse.json({
         success: true,
         isTeamSummary: false,
         month,
         employee: employee || { id: targetUserId, name: payload.name, cpf: payload.cpf, role: payload.role },
         entries: entries || [],
+        dailyBreakdown,
         techniqueServices: techniqueServices || [],
         tripParticipations: tripParticipations || [],
         summary: {
@@ -289,12 +292,15 @@ export async function GET(request: Request) {
         sundayRule,
       });
 
+      const dailyBreakdown = calculateDailyBreakdown(userEntries);
+
       return NextResponse.json({
         success: true,
         isTeamSummary: false,
         month,
         employee: { id: targetUserId, name: payload.name, cpf: payload.cpf, role: payload.role },
         entries: userEntries,
+        dailyBreakdown,
         techniqueServices: memoryTechniques,
         tripParticipations,
         summary: {

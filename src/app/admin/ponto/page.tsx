@@ -125,7 +125,7 @@ function AdminPontoContent() {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('EventPoint — Espelho de Ponto & Fechamento Mensal', 14, 14);
+    doc.text('EventPoint — Espelho de Ponto & Fechamento Mensal (Escala CLT 44h)', 14, 14);
 
     doc.setTextColor(51, 65, 85);
     doc.setFontSize(9);
@@ -136,13 +136,14 @@ function AdminPontoContent() {
     doc.text(`Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 120, 42);
 
     if (reportData.isTeamSummary) {
-      doc.text(`Relatório: Fechamento Consolidado de Toda a Equipe`, 14, 36);
+      doc.text(`Relatório: Fechamento Consolidado da Empresa (Escala 44h: Seg-Sex 8h / Sáb 4h)`, 14, 36);
       doc.setDrawColor(226, 232, 240);
       doc.line(14, 46, 196, 46);
 
       const tableData = (reportData.teamSummaries || []).map((item: any) => [
         item.employee?.name,
         `${item.totalWorkedHours}h`,
+        `${item.regularHours}h`,
         `${item.overtimeHours}h`,
         `R$ ${item.totalTravelAllowancesReais} (${item.travelDaysCount}d)`,
         `R$ ${item.totalTechniquesAmountReais} (${item.techniquesCount}un)`,
@@ -151,7 +152,7 @@ function AdminPontoContent() {
 
       autoTable(doc, {
         startY: 52,
-        head: [['Colaborador', 'Horas Totais', 'Horas Extras', 'Diárias Viagem', 'Adic. Técnicas', 'Total a Pagar']],
+        head: [['Colaborador', 'Horas Totais', 'Horas Normais', 'Horas Extras (50%)', 'Diárias Viagem', 'Adic. Técnicas', 'Total a Pagar']],
         body: tableData,
         theme: 'grid',
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
@@ -169,9 +170,9 @@ function AdminPontoContent() {
 
     doc.setFont('helvetica', 'bold');
     doc.text(`Horas Trabalhadas: ${reportData.summary?.totalWorkedHours || 0}h`, 14, 52);
-    doc.text(`Horas Extras: ${reportData.summary?.overtimeHours || 0}h`, 65, 52);
-    doc.text(`Diárias Viagem: R$ ${reportData.summary?.totalTravelAllowancesReais || '0.00'}`, 110, 52);
-    doc.text(`Adic. Técnicas: R$ ${reportData.summary?.totalTechniquesAmountReais || '0.00'}`, 155, 52);
+    doc.text(`Horas Normais: ${reportData.summary?.regularHours || 0}h`, 65, 52);
+    doc.text(`Horas Extras: ${reportData.summary?.overtimeHours || 0}h`, 110, 52);
+    doc.text(`Diárias Viagem: R$ ${reportData.summary?.totalTravelAllowancesReais || '0.00'}`, 145, 52);
 
     // 1. Tabela de Batidas de Ponto
     const tableData = (reportData.entries || []).map((entry: any) => [
@@ -200,25 +201,24 @@ function AdminPontoContent() {
         doc.addPage();
         lastY = 20;
       }
-      doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text('Diárias de Viagem Realizadas no Período (R$ 150/dia):', 14, lastY + 8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Diárias de Viagem no Período (R$ 150,00/dia)', 14, lastY + 10);
 
       const tripsData = reportData.tripParticipations.map((tp: any) => [
         tp.title,
         tp.destinationCity,
         `${formatDateBR(tp.startDate)} a ${formatDateBR(tp.endDate)}`,
-        `${tp.daysCount} dia(s)`,
+        `${tp.daysCount} dias`,
         `R$ ${(Number(tp.totalAllowanceCentavos || 0) / 100).toFixed(2)}`,
       ]);
 
       autoTable(doc, {
-        startY: lastY + 12,
-        head: [['Evento / Viagem', 'Destino', 'Período', 'Duração', 'Valor Diárias']],
+        startY: lastY + 14,
+        head: [['Evento / Viagem', 'Destino', 'Período', 'Dias', 'Valor Total']],
         body: tripsData,
         theme: 'grid',
-        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: 'bold' },
         styles: { fontSize: 8, cellPadding: 2 },
       });
 
@@ -231,22 +231,21 @@ function AdminPontoContent() {
         doc.addPage();
         lastY = 20;
       }
-      doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.setTextColor(15, 23, 42);
-      doc.text('Adicionais de Técnicas de Eventos no Período (R$ 150/técnica):', 14, lastY + 8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Adicionais de Técnicas de Eventos no Período (R$ 150,00/técnica)', 14, lastY + 10);
 
       const tecsData = reportData.techniqueServices.map((tec: any) => [
         formatDateBR(tec.serviceDate),
         tec.eventName,
         `${tec.techniquesCount} técnica(s)`,
+        tec.notes || '---',
         `R$ ${(Number(tec.totalAmountCentavos || 0) / 100).toFixed(2)}`,
-        tec.notes || '-',
       ]);
 
       autoTable(doc, {
-        startY: lastY + 12,
-        head: [['Data', 'Evento', 'Qtd Técnicas', 'Valor Total', 'Observações']],
+        startY: lastY + 14,
+        head: [['Data', 'Evento', 'Qtd Técnicas', 'Observações', 'Valor Total']],
         body: tecsData,
         theme: 'grid',
         headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
@@ -282,8 +281,8 @@ function AdminPontoContent() {
         Colaborador: item.employee?.name || '-',
         CPF: item.employee?.cpf || '-',
         'Horas Totais': `${item.totalWorkedHours}h`,
-        'Horas Normais': `${item.regularHours}h`,
-        'Horas Extras (>8h)': `${item.overtimeHours}h`,
+        'Horas Normais (Escala 44h)': `${item.regularHours}h`,
+        'Horas Extras (Seg-Sex >8h, Sáb >4h)': `${item.overtimeHours}h`,
         'Dias de Viagem': item.travelDaysCount,
         'Diárias de Viagem (R$)': item.totalTravelAllowancesReais,
         'Qtd Técnicas': item.techniquesCount,
@@ -343,9 +342,9 @@ function AdminPontoContent() {
       { Indicador: 'CPF', Valor: reportData.employee?.cpf || '-' },
       { Indicador: 'Mês de Referência', Valor: reportData.month },
       { Indicador: 'Total de Horas Trabalhadas', Valor: `${reportData.summary?.totalWorkedHours || 0}h` },
-      { Indicador: 'Horas Normais', Valor: `${reportData.summary?.regularHours || 0}h` },
-      { Indicador: 'Horas Extras (excedente 8h/dia)', Valor: `${reportData.summary?.overtimeHours || 0}h` },
-      { Indicador: 'Horas de Domingo / Feriado', Valor: `${reportData.summary?.sundayHolidayHours || 0}h` },
+      { Indicador: 'Horas Normais (Escala CLT 44h)', Valor: `${reportData.summary?.regularHours || 0}h` },
+      { Indicador: 'Horas Extras (Seg-Sex >8h, Sáb >4h)', Valor: `${reportData.summary?.overtimeHours || 0}h` },
+      { Indicador: 'Horas de Domingo / Feriado (100%)', Valor: `${reportData.summary?.sundayHolidayHours || 0}h` },
       { Indicador: 'Qtd Dias de Viagem', Valor: reportData.summary?.travelDaysCount || 0 },
       { Indicador: 'Total Diárias de Viagem (R$)', Valor: reportData.summary?.totalTravelAllowancesReais || '0.00' },
       { Indicador: 'Qtd Serviços de Técnicas', Valor: reportData.summary?.techniquesCount || 0 },
@@ -399,7 +398,7 @@ function AdminPontoContent() {
           Relatórios & Espelho de Ponto
         </h1>
         <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-          Conferência de jornada diária, horas extras (&gt;8h/dia), diárias de viagem (R$ 150/dia), adicionais de técnicas (R$ 150/técnica) e exportação da folha.
+          Conferência de jornada na <strong>Escala CLT 44h</strong> (Seg-Sex 8h e Sáb 4h), horas extras (50%), diárias de viagem (R$ 150/dia) e adicionais de técnicas.
         </p>
       </div>
 
@@ -500,43 +499,39 @@ function AdminPontoContent() {
             <button
               onClick={exportExcel}
               disabled={!reportData}
-              className="w-full bg-surface-container-lowest text-navy-deep border border-border-subtle h-12 rounded-lg hover:bg-surface-container transition-colors shadow-sm active:translate-y-px flex items-center justify-center gap-2.5 font-bold disabled:opacity-50"
+              className="w-full bg-secondary text-on-secondary h-12 rounded-lg hover:bg-secondary/90 transition-colors shadow-soft active:translate-y-px flex items-center justify-center gap-2.5 font-bold disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[20px] text-success-vibrant">
-                table_chart
-              </span>
-              <span>{isTeam ? 'Exportar Planilha Consolidada' : 'Exportar Planilha (XLSX)'}</span>
+              <span className="material-symbols-outlined text-[20px]">table_view</span>
+              <span>Exportar Planilha Excel</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Cards de Resumo */}
+      {/* KPI Cards de Resumo Rápido */}
       {reportData && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft">
+          <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft border-l-4 border-l-navy-deep">
             <span className="font-label-caps text-on-surface-variant uppercase font-bold text-xs">
-              {isTeam ? 'Total Horas Trabalhadas (Equipe)' : 'Total Horas Trabalhadas'}
+              Horas Trabalhadas (Mês)
             </span>
             <p className="text-2xl font-bold text-navy-deep mt-1">
               {isTeam ? `${reportData.teamTotals.totalWorkedHours}h` : `${reportData.summary.totalWorkedHours}h`}
             </p>
             <p className="text-[11px] text-on-surface-variant mt-0.5">
-              {isTeam
-                ? `${reportData.teamTotals.regularHours}h normais + ${reportData.teamTotals.overtimeHours}h extras`
-                : `${reportData.summary.regularHours}h normais + ${reportData.summary.overtimeHours}h extras`}
+              {isTeam ? `${reportData.teamTotals.regularHours}h normais + ${reportData.teamTotals.overtimeHours}h extras` : `${reportData.summary.regularHours}h normais + ${reportData.summary.overtimeHours}h extras`}
             </p>
           </div>
 
           <div className="bg-surface-card border border-border-subtle rounded-xl p-4 shadow-soft border-l-4 border-l-alert-warning">
             <span className="font-label-caps text-on-surface-variant uppercase font-bold text-xs">
-              Horas Extras (&gt;8h/dia)
+              Horas Extras (50%)
             </span>
             <p className="text-2xl font-bold text-alert-warning mt-1">
               {isTeam ? `${reportData.teamTotals.overtimeHours}h` : `${reportData.summary.overtimeHours}h`}
             </p>
             <p className="text-[11px] text-on-surface-variant mt-0.5">
-              Jornada padrão de 8h/dia
+              Seg-Sex &gt; 8h e Sáb &gt; 4h
             </p>
           </div>
 
@@ -573,7 +568,7 @@ function AdminPontoContent() {
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-navy-deep">groups</span>
               <h3 className="font-headline-md font-bold text-navy-deep">
-                Fechamento Consolidado da Equipe — {reportData.month}
+                Fechamento Consolidado da Equipe — {reportData.month} (Escala 44h)
               </h3>
             </div>
             <span className="font-label-caps text-on-surface-variant bg-surface-container px-3 py-1 rounded-full font-bold text-xs">
@@ -592,7 +587,7 @@ function AdminPontoContent() {
                   <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
                     <th className="px-5 py-3.5">Colaborador</th>
                     <th className="px-5 py-3.5">Horas Trabalhadas</th>
-                    <th className="px-5 py-3.5">Horas Extras (&gt;8h)</th>
+                    <th className="px-5 py-3.5">Horas Extras (50%)</th>
                     <th className="px-5 py-3.5">Diárias Viagem</th>
                     <th className="px-5 py-3.5">Adic. Técnicas</th>
                     <th className="px-5 py-3.5">Total a Pagar</th>
@@ -612,6 +607,7 @@ function AdminPontoContent() {
                       </td>
                       <td className="px-5 py-3.5 font-bold text-alert-warning">
                         {item.overtimeHours}h
+                        <span className="block text-[10px] font-normal text-on-surface-variant">Seg-Sex &gt;8h / Sáb &gt;4h</span>
                       </td>
                       <td className="px-5 py-3.5 font-bold text-secondary">
                         R$ {item.totalTravelAllowancesReais}
@@ -698,7 +694,7 @@ function AdminPontoContent() {
             </div>
           ) : (
             <div className="p-0">
-              {/* ABA 1: BATIDAS DE PONTO */}
+              {/* ABA 1: BATIDAS DE PONTO COM DISCRIMINAÇÃO DIÁRIA DA ESCALA CLT 44H */}
               {activeTab === 'entries' && (
                 <div>
                   {!reportData || reportData.entries?.length === 0 ? (
@@ -706,73 +702,195 @@ function AdminPontoContent() {
                       Nenhuma batida de ponto registrada no período selecionado.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
-                            <th className="px-5 py-3.5">Data</th>
-                            <th className="px-5 py-3.5">Horário</th>
-                            <th className="px-5 py-3.5">Tipo</th>
-                            <th className="px-5 py-3.5">GPS / Local</th>
-                            <th className="px-5 py-3.5">Relato Transcrito</th>
-                            <th className="px-5 py-3.5">Ajuste</th>
-                            <th className="px-5 py-3.5 text-right">Ação</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-subtle text-body-sm text-navy-deep font-medium">
-                          {reportData.entries.map((entry: any) => (
-                            <tr key={entry.id} className="hover:bg-surface-container-low/50 transition-colors">
-                              <td className="px-5 py-3.5 whitespace-nowrap">
-                                {new Date(entry.timestamp).toLocaleDateString('pt-BR')}
-                              </td>
-                              <td className="px-5 py-3.5 font-bold font-mono whitespace-nowrap">
-                                {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </td>
-                              <td className="px-5 py-3.5 whitespace-nowrap">
-                                <span className="px-2.5 py-1 rounded text-label-bold font-label-bold uppercase bg-surface-container text-navy-deep text-xs">
-                                  {formatEntryType(entry.entry_type)}
+                    <div className="space-y-6 p-5">
+                      {/* Se houver dailyBreakdown, renderiza os blocos por dia */}
+                      {reportData.dailyBreakdown && reportData.dailyBreakdown.length > 0 ? (
+                        reportData.dailyBreakdown.map((day: any) => (
+                          <div
+                            key={day.date}
+                            className="bg-surface-container-lowest rounded-xl border border-border-subtle overflow-hidden shadow-sm"
+                          >
+                            {/* Cabeçalho do Dia com Status da Escala */}
+                            <div className="p-3.5 bg-surface-container-low border-b border-border-subtle flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <span className="material-symbols-outlined text-[20px] text-navy-deep">
+                                  calendar_today
                                 </span>
-                              </td>
-                              <td className="px-5 py-3.5 whitespace-nowrap">
-                                {entry.gps_status === 'OK' ? (
-                                  <span className="inline-flex items-center gap-1 text-success-vibrant text-xs font-bold">
-                                    <span className="material-symbols-outlined text-[14px]">satellite_alt</span>
-                                    {entry.is_outside_hq ? 'Fora Sede' : 'Sede OK'}
+                                <div>
+                                  <span className="font-bold text-navy-deep text-sm">
+                                    {formatDateBR(day.date)} — {day.dayOfWeek}
                                   </span>
-                                ) : (
-                                  <span className="text-alert-warning text-xs font-bold">Sem GPS</span>
-                                )}
-                              </td>
-                              <td className="px-5 py-3.5 max-w-xs truncate text-xs text-on-surface-variant italic">
-                                {entry.transcription_text || '---'}
-                              </td>
-                              <td className="px-5 py-3.5 whitespace-nowrap">
-                                {entry.is_adjusted ? (
                                   <span
-                                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-alert-warning/20 text-alert-warning border border-alert-warning/30"
-                                    title={entry.adjustment_reason || 'Ajustado pelo gestor'}
+                                    className={`ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                      day.isSaturday
+                                        ? 'bg-secondary-container/80 text-on-secondary-container'
+                                        : day.isSunday
+                                        ? 'bg-error-container text-on-error-container'
+                                        : 'bg-surface-container text-on-surface-variant'
+                                    }`}
                                   >
-                                    Ajustado
+                                    {day.isSaturday
+                                      ? 'Escala Sábado (4h normais)'
+                                      : day.isSunday
+                                      ? 'Domingo / Feriado'
+                                      : 'Escala Seg-Sex (8h normais)'}
                                   </span>
-                                ) : (
-                                  <span className="text-outline text-xs">Original</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-xs">
+                                <span className="text-on-surface-variant font-medium">
+                                  Trabalhado: <strong className="text-navy-deep font-mono">{day.workedHours}h</strong>
+                                </span>
+                                <span className="text-secondary font-medium">
+                                  Normais: <strong className="font-mono">{day.regularHours}h</strong>
+                                </span>
+                                {day.overtimeHours > 0 && (
+                                  <span className="px-2 py-0.5 rounded bg-alert-warning/20 text-alert-warning font-bold border border-alert-warning/30">
+                                    + {day.overtimeHours}h extras
+                                  </span>
                                 )}
-                              </td>
-                              <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                                <button
-                                  onClick={() => handleOpenAdjust(entry)}
-                                  className="text-xs font-bold text-navy-deep hover:text-slate-serious bg-surface-container px-2.5 py-1.5 rounded-lg transition"
-                                >
-                                  Ajustar
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </div>
+                            </div>
+
+                            {/* Tabela de Batidas do Dia */}
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                  <tr className="bg-surface-container-lowest border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-[10px]">
+                                    <th className="px-4 py-2.5">Horário</th>
+                                    <th className="px-4 py-2.5">Tipo</th>
+                                    <th className="px-4 py-2.5">GPS / Local</th>
+                                    <th className="px-4 py-2.5">Relato de Voz</th>
+                                    <th className="px-4 py-2.5">Ajuste</th>
+                                    <th className="px-4 py-2.5 text-right">Ação</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border-subtle text-navy-deep font-medium">
+                                  {day.entries.map((entry: any) => (
+                                    <tr key={entry.id} className="hover:bg-surface-container-low/40 transition-colors">
+                                      <td className="px-4 py-3 font-bold font-mono whitespace-nowrap">
+                                        {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-surface-container text-navy-deep">
+                                          {formatEntryType(entry.entry_type)}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        {entry.gps_status === 'OK' ? (
+                                          <span className="inline-flex items-center gap-1 text-success-vibrant font-bold">
+                                            <span className="material-symbols-outlined text-[14px]">satellite_alt</span>
+                                            {entry.is_outside_hq ? 'Fora Sede' : 'Sede OK'}
+                                          </span>
+                                        ) : (
+                                          <span className="text-alert-warning font-bold">Sem GPS</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 max-w-xs truncate italic text-on-surface-variant">
+                                        {entry.transcription_text || '---'}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        {entry.is_adjusted ? (
+                                          <span
+                                            className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-alert-warning/20 text-alert-warning border border-alert-warning/30"
+                                            title={entry.adjustment_reason || 'Ajustado pelo gestor'}
+                                          >
+                                            Ajustado
+                                          </span>
+                                        ) : (
+                                          <span className="text-outline">Original</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                                        <button
+                                          onClick={() => handleOpenAdjust(entry)}
+                                          className="text-xs font-bold text-navy-deep hover:text-slate-serious bg-surface-container px-2.5 py-1 rounded transition"
+                                        >
+                                          Ajustar
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        /* Fallback Tabela Plana */
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-surface-container-low border-b border-border-subtle text-label-bold font-label-bold text-on-surface-variant uppercase tracking-wider text-xs">
+                                <th className="px-5 py-3.5">Data</th>
+                                <th className="px-5 py-3.5">Horário</th>
+                                <th className="px-5 py-3.5">Tipo</th>
+                                <th className="px-5 py-3.5">GPS / Local</th>
+                                <th className="px-5 py-3.5">Relato Transcrito</th>
+                                <th className="px-5 py-3.5">Ajuste</th>
+                                <th className="px-5 py-3.5 text-right">Ação</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border-subtle text-body-sm text-navy-deep font-medium">
+                              {reportData.entries.map((entry: any) => (
+                                <tr key={entry.id} className="hover:bg-surface-container-low/50 transition-colors">
+                                  <td className="px-5 py-3.5 whitespace-nowrap">
+                                    {new Date(entry.timestamp).toLocaleDateString('pt-BR')}
+                                  </td>
+                                  <td className="px-5 py-3.5 font-bold font-mono whitespace-nowrap">
+                                    {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </td>
+                                  <td className="px-5 py-3.5 whitespace-nowrap">
+                                    <span className="px-2.5 py-1 rounded text-label-bold font-label-bold uppercase bg-surface-container text-navy-deep text-xs">
+                                      {formatEntryType(entry.entry_type)}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3.5 whitespace-nowrap">
+                                    {entry.gps_status === 'OK' ? (
+                                      <span className="inline-flex items-center gap-1 text-success-vibrant text-xs font-bold">
+                                        <span className="material-symbols-outlined text-[14px]">satellite_alt</span>
+                                        {entry.is_outside_hq ? 'Fora Sede' : 'Sede OK'}
+                                      </span>
+                                    ) : (
+                                      <span className="text-alert-warning text-xs font-bold">Sem GPS</span>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-3.5 max-w-xs truncate text-xs text-on-surface-variant italic">
+                                    {entry.transcription_text || '---'}
+                                  </td>
+                                  <td className="px-5 py-3.5 whitespace-nowrap">
+                                    {entry.is_adjusted ? (
+                                      <span
+                                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-alert-warning/20 text-alert-warning border border-alert-warning/30"
+                                        title={entry.adjustment_reason || 'Ajustado pelo gestor'}
+                                      >
+                                        Ajustado
+                                      </span>
+                                    ) : (
+                                      <span className="text-outline text-xs">Original</span>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                                    <button
+                                      onClick={() => handleOpenAdjust(entry)}
+                                      className="text-xs font-bold text-navy-deep hover:text-slate-serious bg-surface-container px-2.5 py-1.5 rounded-lg transition"
+                                    >
+                                      Ajustar
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -875,7 +993,7 @@ function AdminPontoContent() {
                 </div>
               )}
 
-              {/* ABA 4: FECHAMENTO CONSOLIDADO */}
+              {/* ABA 4: FECHAMENTO CONSOLIDADO COM ESCALA CLT 44H */}
               {activeTab === 'summary' && reportData?.summary && (
                 <div className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -883,29 +1001,29 @@ function AdminPontoContent() {
                     <div className="bg-surface-container-low p-5 rounded-xl border border-border-subtle space-y-3">
                       <h4 className="font-bold text-navy-deep text-body-md flex items-center gap-2 border-b border-border-subtle pb-2">
                         <span className="material-symbols-outlined text-[20px]">schedule</span>
-                        <span>Totalizadores de Jornada (CLT)</span>
+                        <span>Totalizadores de Jornada (Escala CLT 44h)</span>
                       </h4>
                       <div className="space-y-2 text-body-sm">
                         <div className="flex justify-between">
-                          <span className="text-on-surface-variant">Horas Normais Trabalhadas:</span>
-                          <span className="font-bold text-navy-deep">{reportData.summary.regularHours}h</span>
+                          <span className="text-on-surface-variant">Total de Horas Trabalhadas:</span>
+                          <span className="font-bold text-navy-deep">{reportData.summary.totalWorkedHours}h</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-on-surface-variant">Horas Extras (&gt;8h/dia):</span>
+                          <span className="text-on-surface-variant">Horas Normais (Seg-Sex 8h / Sáb 4h):</span>
+                          <span className="font-bold text-secondary">{reportData.summary.regularHours}h</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Horas Extras (50%) [Excedente]:</span>
                           <span className="font-bold text-alert-warning">{reportData.summary.overtimeHours}h</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-on-surface-variant">Horas em Domingos / Feriados:</span>
+                          <span className="text-on-surface-variant">Horas em Domingos / Feriados (100%):</span>
                           <span className="font-bold text-navy-deep">{reportData.summary.sundayHolidayHours}h ({reportData.summary.sundayDaysCount} dias)</span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t border-border-subtle">
-                          <span className="font-bold text-navy-deep">Total Horas Registradas:</span>
-                          <span className="font-bold text-navy-deep text-body-md">{reportData.summary.totalWorkedHours}h</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Resumo de Adicionais Financeiros */}
+                    {/* Resumo de Adicionais & Bônus */}
                     <div className="bg-surface-container-low p-5 rounded-xl border border-border-subtle space-y-3">
                       <h4 className="font-bold text-navy-deep text-body-md flex items-center gap-2 border-b border-border-subtle pb-2">
                         <span className="material-symbols-outlined text-[20px]">payments</span>
@@ -917,18 +1035,18 @@ function AdminPontoContent() {
                           <span className="font-bold text-secondary">R$ {reportData.summary.totalTravelAllowancesReais}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-on-surface-variant">Adicionais de Técnicas ({reportData.summary.techniquesCount} un):</span>
+                          <span className="text-on-surface-variant">Adicionais de Técnicas ({reportData.summary.techniquesCount} montagens):</span>
                           <span className="font-bold text-navy-deep">R$ {reportData.summary.totalTechniquesAmountReais}</span>
                         </div>
-                        {Number(reportData.summary.sundayBonusReais) > 0 && (
+                        {reportData.summary.sundayBonusReais && Number(reportData.summary.sundayBonusReais) > 0 && (
                           <div className="flex justify-between">
-                            <span className="text-on-surface-variant">Bônus de Domingo ({sundayRule === 'FIXED_DAILY' ? 'Diária Fixa' : 'H.E. 100%'}):</span>
+                            <span className="text-on-surface-variant">Adicional de Domingo ({sundayRule === 'FIXED_DAILY' ? 'Diária Fixa' : 'H.E. 100%'}):</span>
                             <span className="font-bold text-navy-deep">R$ {reportData.summary.sundayBonusReais}</span>
                           </div>
                         )}
-                        <div className="flex justify-between pt-2 border-t border-border-subtle">
-                          <span className="font-bold text-navy-deep">Total Bruto de Bônus / Diárias:</span>
-                          <span className="font-bold text-secondary text-headline-sm">R$ {reportData.summary.grandTotalBonusReais}</span>
+                        <div className="flex justify-between border-t border-border-subtle pt-2 text-body-md font-bold">
+                          <span className="text-navy-deep">Total de Adicionais a Pagar:</span>
+                          <span className="text-secondary font-black">R$ {reportData.summary.grandTotalBonusReais}</span>
                         </div>
                       </div>
                     </div>
@@ -940,34 +1058,47 @@ function AdminPontoContent() {
         </div>
       )}
 
-      {/* Modal de Ajuste Manual Auditado */}
+      {/* Modal de Ajuste Manual de Ponto Auditado (INV-04) */}
       {adjustingEntry && (
-        <div className="fixed inset-0 z-50 bg-navy-deep/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-surface-card w-full max-w-lg rounded-xl p-6 border border-border-subtle shadow-2xl space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
-              <h3 className="text-headline-md font-bold text-navy-deep">Ajuste Manual Auditado</h3>
-              <button onClick={() => setAdjustingEntry(null)} className="text-on-surface-variant hover:text-navy-deep">
+        <div className="fixed inset-0 bg-navy-deep/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-surface-card rounded-2xl border border-border-subtle max-w-md w-full p-6 shadow-2xl space-y-5 animate-scaleUp">
+            <div className="flex justify-between items-center border-b border-border-subtle pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-alert-warning text-[24px]">edit_calendar</span>
+                <h3 className="font-headline-md text-headline-md font-bold text-navy-deep">
+                  Ajuste Manual de Ponto
+                </h3>
+              </div>
+              <button
+                onClick={() => setAdjustingEntry(null)}
+                className="text-on-surface-variant hover:text-navy-deep transition"
+              >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
             <form onSubmit={handleSaveAdjustment} className="space-y-4">
-              <div className="p-3 bg-surface-container-low rounded-lg text-xs space-y-1 text-on-surface-variant">
-                <p>
-                  <strong>Tipo de Batida:</strong> {formatEntryType(adjustingEntry.entry_type)}
-                </p>
-                <p>
-                  <strong>Horário Original:</strong> {new Date(adjustingEntry.timestamp).toLocaleString('pt-BR')}
-                </p>
+              <div>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
+                  Horário Registrado Anteriormente
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={new Date(adjustingEntry.timestamp).toLocaleString('pt-BR')}
+                  className="w-full p-2.5 rounded-lg border border-border-subtle bg-surface-container text-body-sm text-on-surface-variant"
+                />
               </div>
 
               <div>
-                <label className="block text-body-sm font-semibold text-navy-deep mb-1">Novo Horário *</label>
+                <label className="block text-body-sm font-semibold text-navy-deep mb-1">
+                  Novo Horário Correto *
+                </label>
                 <input
                   type="datetime-local"
                   value={newTimestamp}
                   onChange={(e) => setNewTimestamp(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none"
+                  className="w-full p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md font-semibold text-navy-deep focus:border-navy-deep outline-none"
                   required
                 />
               </div>
@@ -977,28 +1108,32 @@ function AdminPontoContent() {
                   Justificativa Obrigatória (Auditoria INV-04) *
                 </label>
                 <textarea
+                  rows={3}
                   value={adjustmentReason}
                   onChange={(e) => setAdjustmentReason(e.target.value)}
-                  placeholder="Ex: Esqueceu de registrar saída ao término do evento no Buffet França..."
-                  className="w-full p-3 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-md text-on-surface focus:border-navy-deep outline-none h-24 resize-none"
+                  placeholder="Ex: Colaborador esqueceu de registrar o ponto de saída ao término do evento no Buffet França."
+                  className="w-full p-2.5 rounded-lg border border-border-subtle bg-surface-container-lowest text-body-sm text-navy-deep focus:border-navy-deep outline-none"
                   required
                 />
+                <span className="text-[11px] text-on-surface-variant">
+                  Esta justificativa ficará gravada permanentemente no histórico da auditoria.
+                </span>
               </div>
 
-              <div className="pt-2 flex gap-3">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setAdjustingEntry(null)}
-                  className="flex-1 py-2.5 bg-surface-container hover:bg-surface-container-high text-navy-deep font-semibold rounded-lg"
+                  className="flex-1 py-2.5 border border-border-subtle rounded-lg text-body-sm font-bold text-on-surface-variant hover:bg-surface-container transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingAdjustment || !adjustmentReason.trim()}
-                  className="flex-1 py-2.5 bg-navy-deep text-white font-bold rounded-lg shadow-soft active:translate-y-px disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-navy-deep text-white rounded-lg text-body-sm font-bold shadow-soft hover:bg-slate-serious active:translate-y-px transition disabled:opacity-50"
                 >
-                  {savingAdjustment ? 'Salvando...' : 'Salvar Ajuste Auditado'}
+                  {savingAdjustment ? 'Salvando...' : 'Confirmar Ajuste'}
                 </button>
               </div>
             </form>
@@ -1011,7 +1146,7 @@ function AdminPontoContent() {
 
 export default function AdminPontoPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-on-surface-variant">Carregando painel de relatórios...</div>}>
+    <Suspense fallback={<div className="text-center py-16 text-on-surface-variant">Carregando espelho de ponto...</div>}>
       <AdminPontoContent />
     </Suspense>
   );

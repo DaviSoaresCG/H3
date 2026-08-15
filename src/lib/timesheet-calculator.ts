@@ -33,6 +33,19 @@ export interface TimesheetSummaryResult {
   grandTotalBonusCentavos: number;
 }
 
+export interface DailyBreakdownItem {
+  date: string;
+  dayOfWeek: string;
+  isSaturday: boolean;
+  isSunday: boolean;
+  dailyLimitHours: number;
+  workedHours: number;
+  regularHours: number;
+  overtimeHours: number;
+  sundayHours: number;
+  entries: StoredTimeEntry[];
+}
+
 /**
  * Valida a tentativa de ajuste manual de ponto pelo gestor (INV-04).
  */
@@ -86,6 +99,17 @@ export function isSaturdayDate(dateInput: string): boolean {
 }
 
 /**
+ * Retorna o nome por extenso do dia da semana em Português
+ */
+export function getDayOfWeekName(dateInput: string): string {
+  const dateStr = dateInput.substring(0, 10);
+  const dateObj = new Date(dateStr + 'T00:00:00');
+  const day = dateObj.getDay();
+  const names = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  return names[day] || 'Dia';
+}
+
+/**
  * Retorna o limite de horas normais diárias com base na escala CLT 44h semanais:
  * - Segunda a Sexta: 8.0 horas normais/dia (40h)
  * - Sábado: 4.0 horas normais/dia (4h) -> Total 44h semanais
@@ -98,28 +122,9 @@ export function getStandardDailyWorkLimit(dateInput: string): number {
 }
 
 /**
- * Consolida as horas trabalhadas agrupando por dia e totaliza bônus/adicionais para o fechamento mensal.
- * Aplica a escala padrão CLT de 44h semanais (Seg-Sex: 8h normais, Sáb: 4h normais).
+ * Calcula a discriminação diária de cada dia com batidas de ponto, identificando horas normais e extras individuais
  */
-export function calculateTimesheetSummary(
-  params: TimesheetSummaryParams
-): TimesheetSummaryResult {
-  const {
-    entries = [],
-    techniqueServicesCount = 0,
-    travelDaysCount = 0,
-    sundayRule = 'OVERTIME_100',
-    hourlyRateCentavos = 2500, // R$ 25,00/h base
-    customTechniquesCentavos,
-    customTravelCentavos,
-  } = params;
-
-  let regularHoursAccum = 0;
-  let overtimeHoursAccum = 0;
-  let sundayHolidayHoursAccum = 0;
-  const sundayDatesWorked = new Set<string>();
-
-  // Agrupa batidas por data local (YYYY-MM-DD)
+export function calculateDailyBreakdown(entries: StoredTimeEntry[]): DailyBreakdownItem[] {
   const entriesByDay: Record<string, StoredTimeEntry[]> = {};
   for (const entry of entries) {
     if (!entry.timestamp) continue;
@@ -133,6 +138,8 @@ export function calculateTimesheetSummary(
     }
     entriesByDay[dayKey].push(entry);
   }
+
+  const result: DailyBreakdownItem[] = [];
 
   for (const [dayKey, dayEntries] of Object.entries(entriesByDay)) {
     const sorted = [...dayEntries].sort(
@@ -169,10 +176,8 @@ export function calculateTimesheetSummary(
       }
     }
 
-    // Se o expediente ainda está aberto (CLOCK_IN sem CLOCK_OUT ainda)
     if (currentIn) {
       const now = new Date();
-      // Apenas computa tempo corrido se for a data de hoje
       const nowDayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       if (dayKey === nowDayKey) {
         const span = now.getTime() - currentIn.getTime() - dayMealMs;
@@ -182,22 +187,76 @@ export function calculateTimesheetSummary(
       }
     }
 
-    if (dayWorkMs > 0) {
-      const dayHours = dayWorkMs / (1000 * 60 * 60);
+    const dayHours = Number((dayWorkMs / (1000 * 60 * 60)).toFixed(2));
+    const isSun = isSundayDate(dayKey);
+    const isSat = isSaturdayDate(dayKey);
+    const dailyLimit = getStandardDailyWorkLimit(dayKey);
 
-      if (isSundayDate(dayKey)) {
-        sundayHolidayHoursAccum += dayHours;
-        sundayDatesWorked.add(dayKey);
+    let reg = 0;
+    let extra = 0;
+    let sun = 0;
+
+    if (isSun) {
+      sun = dayHours;
+    } else {
+      if (dayHours <= dailyLimit) {
+        reg = dayHours;
       } else {
-        // Aplica o limite diário da escala CLT (Seg-Sex: 8h, Sáb: 4h)
-        const dailyLimit = getStandardDailyWorkLimit(dayKey);
-        if (dayHours <= dailyLimit) {
-          regularHoursAccum += dayHours;
-        } else {
-          regularHoursAccum += dailyLimit;
-          overtimeHoursAccum += (dayHours - dailyLimit);
-        }
+        reg = dailyLimit;
+        extra = Number((dayHours - dailyLimit).toFixed(2));
       }
+    }
+
+    result.push({
+      date: dayKey,
+      dayOfWeek: getDayOfWeekName(dayKey),
+      isSaturday: isSat,
+      isSunday: isSun,
+      dailyLimitHours: dailyLimit,
+      workedHours: dayHours,
+      regularHours: reg,
+      overtimeHours: extra,
+      sundayHours: sun,
+      entries: sorted,
+    });
+  }
+
+  return result.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Consolida as horas trabalhadas agrupando por dia e totaliza bônus/adicionais para o fechamento mensal.
+ * Aplica a escala padrão CLT de 44h semanais (Seg-Sex: 8h normais, Sáb: 4h normais).
+ */
+export function calculateTimesheetSummary(
+  params: TimesheetSummaryParams
+): TimesheetSummaryResult {
+  const {
+    entries = [],
+    techniqueServicesCount = 0,
+    travelDaysCount = 0,
+    sundayRule = 'OVERTIME_100',
+    hourlyRateCentavos = 2500, // R$ 25,00/h base
+    customTechniquesCentavos,
+    customTravelCentavos,
+  } = params;
+
+  const dailyBreakdown = calculateDailyBreakdown(entries);
+
+  let regularHoursAccum = 0;
+  let overtimeHoursAccum = 0;
+  let sundayHolidayHoursAccum = 0;
+  const sundayDatesWorked = new Set<string>();
+
+  for (const day of dailyBreakdown) {
+    if (day.isSunday) {
+      sundayHolidayHoursAccum += day.sundayHours;
+      if (day.workedHours > 0) {
+        sundayDatesWorked.add(day.date);
+      }
+    } else {
+      regularHoursAccum += day.regularHours;
+      overtimeHoursAccum += day.overtimeHours;
     }
   }
 
