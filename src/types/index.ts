@@ -6,6 +6,7 @@ export interface User {
   name: string;
   phone: string;
   role: UserRole;
+  avatarUrl?: string | null;
   createdAt: string;
 }
 
@@ -273,6 +274,7 @@ export interface JwtPayload {
   cpf: string;
   name: string;
   role: UserRole;
+  avatarUrl?: string | null;
   iat?: number;
   exp?: number;
 }

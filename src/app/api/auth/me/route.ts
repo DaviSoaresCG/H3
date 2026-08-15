@@ -20,7 +20,7 @@ export async function GET() {
 
     try {
       const dbUser = await queryOne<User>(
-        'SELECT id, cpf, name, phone, role, created_at as "createdAt" FROM users WHERE id = $1',
+        'SELECT id, cpf, name, phone, role, avatar_url as "avatarUrl", created_at as "createdAt" FROM users WHERE id = $1',
         [payload.userId]
       );
       if (dbUser) {
@@ -32,6 +32,7 @@ export async function GET() {
             name: dbUser.name,
             phone: dbUser.phone || '',
             role: dbUser.role,
+            avatarUrl: dbUser.avatarUrl || null,
           },
         });
       }
@@ -47,6 +48,7 @@ export async function GET() {
         name: payload.name,
         phone: '',
         role: payload.role,
+        avatarUrl: payload.avatarUrl || null,
       },
     });
   } catch (error) {

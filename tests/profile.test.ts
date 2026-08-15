@@ -14,16 +14,18 @@ describe('Módulo de Perfil do Colaborador (Ticket 01)', () => {
       const decodedOriginal = verifyToken(originalToken);
       expect(decodedOriginal?.name).toBe('Carlos Antigo');
 
-      // Atualiza nome
+      // Atualiza nome e avatarUrl
       const updatedToken = signToken({
         ...originalPayload,
         name: 'Carlos Miguel Atualizado',
+        avatarUrl: 'data:image/jpeg;base64,mockAvatarData',
       });
 
       const decodedUpdated = verifyToken(updatedToken);
       expect(decodedUpdated?.name).toBe('Carlos Miguel Atualizado');
       expect(decodedUpdated?.cpf).toBe('12345678900');
       expect(decodedUpdated?.role).toBe('EMPLOYEE');
+      expect(decodedUpdated?.avatarUrl).toBe('data:image/jpeg;base64,mockAvatarData');
     });
   });
 

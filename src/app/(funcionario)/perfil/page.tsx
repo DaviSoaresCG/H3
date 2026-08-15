@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 
 export default function PerfilPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,6 +27,7 @@ export default function PerfilPage() {
           setUser(data.user);
           setName(data.user.name || '');
           setPhone(data.user.phone || '');
+          setAvatarUrl(data.user.avatarUrl || null);
         } else {
           router.push('/login');
         }
@@ -35,6 +39,60 @@ export default function PerfilPage() {
     }
     loadProfile();
   }, [router]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFeedback({ type: 'error', text: 'Por favor, selecione um arquivo de imagem válido (JPG, PNG ou WebP).' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Redimensiona para manter o tamanho leve no banco (máximo 300x300 px)
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setAvatarUrl(compressedDataUrl);
+          setFeedback({ type: 'success', text: 'Foto selecionada! Clique em "Salvar Alterações" para confirmar.' });
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setAvatarUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setFeedback({ type: 'success', text: 'Foto removida. Clique em "Salvar Alterações" para confirmar.' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +122,7 @@ export default function PerfilPage() {
           name: name.trim(),
           phone: phone.trim(),
           password: newPassword ? newPassword.trim() : undefined,
+          avatarUrl: avatarUrl,
         }),
       });
 
@@ -72,12 +131,19 @@ export default function PerfilPage() {
         throw new Error(data.error || 'Erro ao salvar alterações');
       }
 
-      setFeedback({ type: 'success', text: 'Perfil atualizado com sucesso!' });
+      setFeedback({ type: 'success', text: 'Perfil e foto atualizados com sucesso!' });
       if (data.user) {
         setUser(data.user);
+        setAvatarUrl(data.user.avatarUrl || null);
       }
       setNewPassword('');
       setConfirmPassword('');
+
+      // Notifica componentes e cabeçalho sobre atualização
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('user-profile-updated'));
+      }
+
       setTimeout(() => setFeedback(null), 4000);
     } catch (err: any) {
       setFeedback({ type: 'error', text: err.message || 'Erro ao salvar alterações' });
@@ -126,18 +192,60 @@ export default function PerfilPage() {
         </div>
       )}
 
-      {/* Card do Perfil / Avatar */}
+      {/* Card do Perfil / Avatar com Edição de Foto */}
       <div className="bg-surface-container-lowest border border-surface-variant rounded-2xl p-6 shadow-sm flex flex-col items-center text-center border-t-4 border-t-primary-container">
         <div className="relative mb-3">
-          <div className="w-20 h-20 rounded-full bg-navy-deep text-primary-container flex items-center justify-center font-black text-3xl shadow-sm border-4 border-surface-variant">
-            {initials}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="w-24 h-24 rounded-full bg-navy-deep text-primary-container flex items-center justify-center font-black text-3xl shadow-sm border-4 border-surface-variant overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group relative"
+            title="Clique para alterar foto"
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={user?.name || 'Foto de Perfil'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>{initials}</span>
+            )}
+
+            {/* Overlay com ícone de câmera ao passar o mouse */}
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="material-symbols-outlined text-white text-[28px]">photo_camera</span>
+            </div>
           </div>
-          <div className="absolute bottom-0 right-0 bg-success-vibrant text-white w-6 h-6 rounded-full flex items-center justify-center border-2 border-surface-container-lowest">
-            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              check
-            </span>
-          </div>
+
+          {/* Botão de Câmera na borda inferior */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute bottom-0 right-0 bg-primary-container text-on-yellow-text hover:brightness-95 w-8 h-8 rounded-full flex items-center justify-center border-2 border-surface-container-lowest shadow-md transition"
+            title="Trocar Foto"
+          >
+            <span className="material-symbols-outlined text-[16px]">edit</span>
+          </button>
         </div>
+
+        {/* Botão para remover foto se existir */}
+        {avatarUrl && (
+          <button
+            type="button"
+            onClick={handleRemovePhoto}
+            className="text-[11px] font-bold text-error hover:underline mb-2 flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-[14px]">delete</span>
+            <span>Remover foto</span>
+          </button>
+        )}
 
         <h2 className="text-headline-md font-headline-md font-bold text-on-surface">
           {user?.name || 'Carregando...'}

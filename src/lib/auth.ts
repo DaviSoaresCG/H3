@@ -21,7 +21,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
 /**
  * Gera um token JWT assinado para a sessão do usuário
  */
-export function generateToken(payload: { userId: string; cpf: string; name: string; role: UserRole }): string {
+export function generateToken(payload: { userId: string; cpf: string; name: string; role: UserRole; avatarUrl?: string | null }): string {
   return jwt.sign(payload, ENV.JWT_SECRET, { expiresIn: '7d' });
 }
 export const signToken = generateToken;
